@@ -626,10 +626,22 @@ export default function TaskBoard() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                style={{ backgroundColor: 'var(--color-orange)' }}>
-                SO
-              </div>
+              <svg width="32" height="32" viewBox="150 60 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="225" cy="150" r="50" stroke="url(#tbGrad1)" strokeWidth="4" fill="none" />
+                <circle cx="225" cy="150" r="30" fill="url(#tbGrad2)" />
+                <circle cx="285" cy="150" r="10" fill="#60A5FA" />
+                <line x1="275" y1="150" x2="245" y2="150" stroke="#60A5FA" strokeWidth="2" opacity="0.5" />
+                <defs>
+                  <linearGradient id="tbGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#3B82F6" />
+                    <stop offset="100%" stopColor="#6366F1" />
+                  </linearGradient>
+                  <linearGradient id="tbGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#60A5FA" />
+                    <stop offset="100%" stopColor="#818CF8" />
+                  </linearGradient>
+                </defs>
+              </svg>
               <h1 className="text-2xl font-bold text-white">Second Orbit</h1>
             </div>
             <p className="text-sm text-slate-500 ml-11">Mission Control — Task Board</p>
