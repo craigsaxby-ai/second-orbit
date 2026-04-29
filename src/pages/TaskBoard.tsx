@@ -303,28 +303,27 @@ function TaskCard({
   )
 }
 
-// ─── InlineAddTask ────────────────────────────────────────────────────────────
+// ─── AddTaskModal ─────────────────────────────────────────────────────────────
 
-function InlineAddTask({
-  status,
+function AddTaskModal({
   onAdd,
+  onClose,
 }: {
-  status: TaskStatus
   onAdd: (fields: { title: string; notes: string; assignee: string; category: TaskCategory; status: TaskStatus }) => Promise<void>
+  onClose: () => void
 }) {
-  const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [assignee, setAssignee] = useState('Sax')
   const [category, setCategory] = useState<TaskCategory>('searchline')
+  const [status, setStatus] = useState<TaskStatus>('idea')
   const [saving, setSaving] = useState(false)
 
-  const reset = () => {
-    setTitle('')
-    setNotes('')
-    setAssignee('Sax')
-    setCategory('searchline')
-  }
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -332,97 +331,132 @@ function InlineAddTask({
     setSaving(true)
     try {
       await onAdd({ title: title.trim(), notes: notes.trim(), assignee: assignee.trim() || 'Sax', category, status })
-      reset()
-      setOpen(false)
+      onClose()
     } finally {
       setSaving(false)
     }
   }
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 w-full py-1 px-1 rounded transition-colors hover:bg-white/5 min-h-[32px]"
-      >
-        <span className="text-base leading-none">+</span> Add task
-      </button>
-    )
-  }
-
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-2.5 p-2.5 rounded-xl border"
-      style={{ backgroundColor: 'var(--color-card)', borderColor: '#FF6B2B55' }}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(10,15,30,0.85)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <p className="text-[10px] text-orange-400 font-semibold uppercase tracking-wide">New Task</p>
+      <div
+        className="w-full max-w-md rounded-2xl border p-6 shadow-2xl"
+        style={{ backgroundColor: '#0A0F1E', borderColor: '#1E2740' }}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-semibold text-white">Add Task</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-      <input
-        autoFocus
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Task title…"
-        className={inputCls}
-        style={inputStyle}
-      />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-500 uppercase tracking-wide">Title *</label>
+            <input
+              autoFocus
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Task title…"
+              className={inputCls}
+              style={inputStyle}
+              required
+            />
+          </div>
 
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder="Notes (optional)…"
-        rows={2}
-        className={`${inputCls} resize-none`}
-        style={inputStyle}
-      />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-slate-500 uppercase tracking-wide">Product / Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as TaskCategory)}
+                className={`${inputCls} cursor-pointer`}
+                style={inputStyle}
+              >
+                <option value="searchline">Searchline</option>
+                <option value="openclaw">OpenClaw</option>
+                <option value="product-idea">Product Idea</option>
+                <option value="infrastructure">Infrastructure</option>
+              </select>
+            </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          type="text"
-          value={assignee}
-          onChange={(e) => setAssignee(e.target.value)}
-          placeholder="Assignee"
-          className={inputCls}
-          style={inputStyle}
-        />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value as TaskCategory)}
-          className={`${inputCls} cursor-pointer`}
-          style={inputStyle}
-        >
-          {ALL_CATEGORIES.map((c) => (
-            <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
-          ))}
-        </select>
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-slate-500 uppercase tracking-wide">Stage</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                className={`${inputCls} cursor-pointer`}
+                style={inputStyle}
+              >
+                <option value="idea">Ideas</option>
+                <option value="planned">Planned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-500 uppercase tracking-wide">Assignee</label>
+            <input
+              type="text"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              placeholder="Assignee…"
+              className={inputCls}
+              style={inputStyle}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-500 uppercase tracking-wide">Notes (optional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Optional notes…"
+              rows={3}
+              className={`${inputCls} resize-none text-xs`}
+              style={inputStyle}
+            />
+          </div>
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={saving || !title.trim()}
+              className="text-sm px-4 py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-50"
+              style={{ backgroundColor: 'var(--color-orange)' }}
+            >
+              {saving ? 'Adding…' : '+ Add Task'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-sm text-slate-400 hover:text-slate-200 transition-colors px-3 py-2"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="submit"
-          disabled={saving || !title.trim()}
-          className="text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-colors disabled:opacity-50 min-h-[32px]"
-          style={{ backgroundColor: 'var(--color-orange)' }}
-        >
-          {saving ? 'Adding…' : 'Add'}
-        </button>
-        <button
-          type="button"
-          onClick={() => { setOpen(false); reset() }}
-          className="text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1.5 min-h-[32px]"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
+    </div>
   )
 }
 
 // ─── KanbanColumn ─────────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  status, label, emoji, tasks, onDelete, onStatusChange, onAddTask, onEdit,
+  status, label, emoji, tasks, onDelete, onStatusChange, onEdit,
 }: {
   status: TaskStatus
   label: string
@@ -430,7 +464,6 @@ function KanbanColumn({
   tasks: TaskItem[]
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: TaskStatus) => void
-  onAddTask: (fields: { title: string; notes: string; assignee: string; category: TaskCategory; status: TaskStatus }) => Promise<void>
   onEdit: (id: string, fields: Partial<TaskItem>) => Promise<void>
 }) {
   const headerStyle = COLUMN_HEADER_COLOR[status]
@@ -447,8 +480,6 @@ function KanbanColumn({
           {tasks.length}
         </span>
       </div>
-
-      <InlineAddTask status={status} onAdd={onAddTask} />
 
       <div className="flex flex-col gap-2">
         {tasks.length === 0 ? (
@@ -475,6 +506,7 @@ export default function TaskBoard() {
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
   const loadTasks = async () => {
     setLoading(true)
@@ -562,12 +594,21 @@ export default function TaskBoard() {
             </div>
             <p className="text-sm text-slate-500 ml-11">Mission Control — Task Board</p>
           </div>
-          <button
-            onClick={loadTasks}
-            className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            ↻ Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="text-xs font-medium text-white px-3 py-1.5 rounded-lg transition-colors"
+              style={{ backgroundColor: 'var(--color-orange)' }}
+            >
+              + Add Task
+            </button>
+            <button
+              onClick={loadTasks}
+              className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              ↻ Refresh
+            </button>
+          </div>
         </div>
 
         {loading && (
@@ -597,11 +638,20 @@ export default function TaskBoard() {
                 tasks={tasks.filter((t) => t.status === status)}
                 onDelete={handleDelete}
                 onStatusChange={handleStatusChange}
-                onAddTask={handleAddTask}
                 onEdit={handleEdit}
               />
             ))}
           </div>
+        )}
+
+        {showAddModal && (
+          <AddTaskModal
+            onAdd={async (fields) => {
+              await handleAddTask(fields)
+              await loadTasks()
+            }}
+            onClose={() => setShowAddModal(false)}
+          />
         )}
       </div>
     </div>
