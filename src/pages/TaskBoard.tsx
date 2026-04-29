@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TaskStatus = 'idea' | 'planned' | 'in_progress' | 'done'
-type TaskCategory = 'searchline' | 'openclaw' | 'product-idea' | 'infrastructure'
+type TaskCategory = 'searchline' | 'candidate-portal' | 'salary-benchmark' | 'achievement-record' | 'proofline' | 'second-orbit' | 'openclaw' | 'product-idea' | 'infrastructure'
 
 interface TaskItem {
   id: string
@@ -42,17 +42,27 @@ const COLUMN_HEADER_COLOR: Record<TaskStatus, string> = {
 }
 
 const CATEGORY_STYLES: Record<TaskCategory, { badge: string; dot: string }> = {
-  'searchline':     { badge: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',      dot: 'bg-blue-400' },
-  'openclaw':       { badge: 'bg-purple-500/20 text-purple-300 border border-purple-500/30', dot: 'bg-purple-400' },
-  'product-idea':   { badge: 'bg-orange-500/20 text-orange-300 border border-orange-500/30', dot: 'bg-orange-400' },
-  'infrastructure': { badge: 'bg-green-500/20 text-green-300 border border-green-500/30',    dot: 'bg-green-400' },
+  'searchline':        { badge: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',      dot: 'bg-blue-400' },
+  'candidate-portal':  { badge: 'bg-sky-500/20 text-sky-300 border border-sky-500/30',          dot: 'bg-sky-400' },
+  'salary-benchmark':  { badge: 'bg-teal-500/20 text-teal-300 border border-teal-500/30',       dot: 'bg-teal-400' },
+  'achievement-record':{ badge: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30', dot: 'bg-yellow-400' },
+  'proofline':         { badge: 'bg-rose-500/20 text-rose-300 border border-rose-500/30',       dot: 'bg-rose-400' },
+  'second-orbit':      { badge: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30', dot: 'bg-indigo-400' },
+  'openclaw':          { badge: 'bg-purple-500/20 text-purple-300 border border-purple-500/30', dot: 'bg-purple-400' },
+  'product-idea':      { badge: 'bg-orange-500/20 text-orange-300 border border-orange-500/30', dot: 'bg-orange-400' },
+  'infrastructure':    { badge: 'bg-green-500/20 text-green-300 border border-green-500/30',    dot: 'bg-green-400' },
 }
 
 const CATEGORY_LABELS: Record<TaskCategory, string> = {
-  'searchline':     'Searchline',
-  'openclaw':       'OpenClaw',
-  'product-idea':   'Product Ideas',
-  'infrastructure': 'Infrastructure',
+  'searchline':         'Searchline',
+  'candidate-portal':   'Candidate Portal',
+  'salary-benchmark':   'Salary Benchmark',
+  'achievement-record': 'Achievement Record',
+  'proofline':          'Proofline (legacy)',
+  'second-orbit':       'Second Orbit',
+  'openclaw':           'OpenClaw',
+  'product-idea':       'Product Idea',
+  'infrastructure':     'Infrastructure',
 }
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS) as TaskStatus[]
@@ -305,6 +315,8 @@ function TaskCard({
 
 // ─── AddTaskModal ─────────────────────────────────────────────────────────────
 
+const QUICK_ASSIGNEES = ['Sax', 'Nova', 'ANT', 'Echo'] as const
+
 function AddTaskModal({
   onAdd,
   onClose,
@@ -315,9 +327,15 @@ function AddTaskModal({
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [assignee, setAssignee] = useState('Sax')
+  const [selectedPill, setSelectedPill] = useState<string>('Sax')
   const [category, setCategory] = useState<TaskCategory>('searchline')
   const [status, setStatus] = useState<TaskStatus>('idea')
   const [saving, setSaving] = useState(false)
+
+  const handlePillClick = (name: string) => {
+    setSelectedPill(name)
+    setAssignee(name)
+  }
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -384,6 +402,11 @@ function AddTaskModal({
                 style={inputStyle}
               >
                 <option value="searchline">Searchline</option>
+                <option value="candidate-portal">Candidate Portal</option>
+                <option value="salary-benchmark">Salary Benchmark</option>
+                <option value="achievement-record">Achievement Record</option>
+                <option value="proofline">Proofline (legacy)</option>
+                <option value="second-orbit">Second Orbit</option>
                 <option value="openclaw">OpenClaw</option>
                 <option value="product-idea">Product Idea</option>
                 <option value="infrastructure">Infrastructure</option>
@@ -408,10 +431,27 @@ function AddTaskModal({
 
           <div className="space-y-1.5">
             <label className="text-[10px] text-slate-500 uppercase tracking-wide">Assignee</label>
+            <div className="flex gap-2 flex-wrap">
+              {QUICK_ASSIGNEES.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => handlePillClick(name)}
+                  className="text-xs px-3 py-1 rounded-full border font-medium transition-colors"
+                  style={{
+                    backgroundColor: selectedPill === name ? 'var(--color-orange)' : 'transparent',
+                    borderColor: selectedPill === name ? 'var(--color-orange)' : '#1E2740',
+                    color: selectedPill === name ? '#fff' : '#94a3b8',
+                  }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
             <input
               type="text"
               value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
+              onChange={(e) => { setAssignee(e.target.value); setSelectedPill('') }}
               placeholder="Assignee…"
               className={inputCls}
               style={inputStyle}
