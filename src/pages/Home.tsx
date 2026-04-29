@@ -158,9 +158,7 @@ function Nav() {
         zIndex: 50,
       }}
     >
-      <span style={{ color: '#f97316', fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em' }}>
-        Second Orbit
-      </span>
+      <img src="/second-orbit-logo.svg" alt="Second Orbit" style={{ height: 32, width: 'auto' }} />
       <div style={{ display: 'flex', gap: 24 }}>
         <Link
           to="/"
@@ -198,18 +196,7 @@ export function Home() {
               margin: '0 auto 24px',
             }}
           />
-          <h1
-            style={{
-              color: '#f8fafc',
-              fontSize: 'clamp(2rem, 5vw, 3.5rem)',
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              margin: '0 0 12px',
-              lineHeight: 1.1,
-            }}
-          >
-            Second Orbit
-          </h1>
+          <img src="/second-orbit-logo.svg" alt="Second Orbit" style={{ maxWidth: 320, width: '100%', height: 'auto', margin: '0 auto 8px' }} />
           <p style={{ color: '#64748b', fontSize: 18, margin: 0 }}>
             Building AI-powered products
           </p>

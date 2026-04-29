@@ -1,0 +1,25 @@
+<svg width="800" height="400" viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+ <!-- Logo mark -->
+ <circle cx="400" cy="150" r="50" stroke="url(#gradMin1)" stroke-width="4" fill="none" />
+ <circle cx="400" cy="150" r="30" fill="url(#gradMin2)" />
+
+ <circle cx="460" cy="150" r="10" fill="#60A5FA" />
+ <line x1="450" y1="150" x2="420" y2="150" stroke="#60A5FA" stroke-width="2" opacity="0.5" />
+
+ <!-- Text -->
+ <text x="400" y="270" fill="white" font-size="48" font-weight="600" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif">
+ SECOND ORBIT
+ </text>
+
+ <!-- Gradients -->
+ <defs>
+ <linearGradient id="gradMin1" x1="0%" y1="0%" x2="100%" y2="100%">
+ <stop offset="0%" stop-color="#3B82F6" />
+ <stop offset="100%" stop-color="#6366F1" />
+ </linearGradient>
+ <linearGradient id="gradMin2" x1="0%" y1="0%" x2="100%" y2="100%">
+ <stop offset="0%" stop-color="#60A5FA" />
+ <stop offset="100%" stop-color="#818CF8" />
+ </linearGradient>
+ </defs>
+</svg>
