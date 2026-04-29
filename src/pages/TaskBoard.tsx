@@ -42,10 +42,10 @@ const COLUMN_HEADER_COLOR: Record<TaskStatus, string> = {
 }
 
 const CATEGORY_STYLES: Record<TaskCategory, { badge: string; dot: string }> = {
-  'searchline':     { badge: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',   dot: 'bg-blue-400' },
+  'searchline':     { badge: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',      dot: 'bg-blue-400' },
   'openclaw':       { badge: 'bg-purple-500/20 text-purple-300 border border-purple-500/30', dot: 'bg-purple-400' },
   'product-idea':   { badge: 'bg-orange-500/20 text-orange-300 border border-orange-500/30', dot: 'bg-orange-400' },
-  'infrastructure': { badge: 'bg-green-500/20 text-green-300 border border-green-500/30',  dot: 'bg-green-400' },
+  'infrastructure': { badge: 'bg-green-500/20 text-green-300 border border-green-500/30',    dot: 'bg-green-400' },
 }
 
 const CATEGORY_LABELS: Record<TaskCategory, string> = {
@@ -55,37 +55,194 @@ const CATEGORY_LABELS: Record<TaskCategory, string> = {
   'infrastructure': 'Infrastructure',
 }
 
+const ALL_STATUSES = Object.keys(STATUS_LABELS) as TaskStatus[]
+const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS) as TaskCategory[]
+
+// ─── Shared input styles ──────────────────────────────────────────────────────
+
+const inputCls =
+  'w-full text-sm rounded-lg px-2.5 py-1.5 outline-none transition-colors text-slate-100 placeholder:text-slate-600 border'
+
+const inputStyle = { backgroundColor: '#0d1526', borderColor: '#1E2740' }
+
 // ─── TaskCard ─────────────────────────────────────────────────────────────────
 
 function TaskCard({
   task,
   onDelete,
   onStatusChange,
+  onEdit,
 }: {
   task: TaskItem
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: TaskStatus) => void
+  onEdit: (id: string, fields: Partial<TaskItem>) => Promise<void>
 }) {
   const [hovered, setHovered] = useState(false)
   const [showMove, setShowMove] = useState(false)
-  const [expanded, setExpanded] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const cat = CATEGORY_STYLES[task.category] ?? { badge: 'bg-gray-500/20 text-gray-300 border border-gray-500/30', dot: 'bg-gray-400' }
-  const catLabel = CATEGORY_LABELS[task.category] ?? task.category
-  const others = (Object.keys(STATUS_LABELS) as TaskStatus[]).filter((s) => s !== task.status)
+  // Edit form state
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [editNotes, setEditNotes] = useState(task.notes ?? '')
+  const [editStatus, setEditStatus] = useState<TaskStatus>(task.status)
+  const [editCategory, setEditCategory] = useState<TaskCategory>(task.category)
+  const [editAssignee, setEditAssignee] = useState(task.assignee ?? '')
+
+  const openEdit = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditTitle(task.title)
+    setEditNotes(task.notes ?? '')
+    setEditStatus(task.status)
+    setEditCategory(task.category)
+    setEditAssignee(task.assignee ?? '')
+    setEditing(true)
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!editTitle.trim()) return
+    setSaving(true)
+    try {
+      await onEdit(task.id, {
+        title: editTitle.trim(),
+        notes: editNotes.trim() || null,
+        status: editStatus,
+        category: editCategory,
+        assignee: editAssignee.trim() || null,
+      })
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditing(false)
+  }
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (window.confirm('Delete this task?')) onDelete(task.id)
   }
 
+  const cat = CATEGORY_STYLES[task.category] ?? { badge: 'bg-gray-500/20 text-gray-300 border border-gray-500/30', dot: 'bg-gray-400' }
+  const catLabel = CATEGORY_LABELS[task.category] ?? task.category
+  const others = ALL_STATUSES.filter((s) => s !== task.status)
+
+  // ── Edit mode ──────────────────────────────────────────────────────────────
+  if (editing) {
+    return (
+      <form
+        onSubmit={handleSave}
+        className="rounded-xl border p-3 space-y-2.5"
+        style={{ backgroundColor: 'var(--color-card)', borderColor: '#FF6B2B55' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-[10px] text-orange-400 font-semibold uppercase tracking-wide mb-1">Editing</p>
+
+        <div className="space-y-1.5">
+          <label className="text-[10px] text-slate-500 uppercase tracking-wide">Title</label>
+          <input
+            autoFocus
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            placeholder="Task title…"
+            className={inputCls}
+            style={inputStyle}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[10px] text-slate-500 uppercase tracking-wide">Notes</label>
+          <textarea
+            value={editNotes}
+            onChange={(e) => setEditNotes(e.target.value)}
+            placeholder="Optional notes…"
+            rows={3}
+            className={`${inputCls} resize-none`}
+            style={inputStyle}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-500 uppercase tracking-wide">Status</label>
+            <select
+              value={editStatus}
+              onChange={(e) => setEditStatus(e.target.value as TaskStatus)}
+              className={`${inputCls} cursor-pointer`}
+              style={inputStyle}
+            >
+              {ALL_STATUSES.map((s) => (
+                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-slate-500 uppercase tracking-wide">Category</label>
+            <select
+              value={editCategory}
+              onChange={(e) => setEditCategory(e.target.value as TaskCategory)}
+              className={`${inputCls} cursor-pointer`}
+              style={inputStyle}
+            >
+              {ALL_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[10px] text-slate-500 uppercase tracking-wide">Assignee</label>
+          <input
+            type="text"
+            value={editAssignee}
+            onChange={(e) => setEditAssignee(e.target.value)}
+            placeholder="Assignee…"
+            className={inputCls}
+            style={inputStyle}
+          />
+        </div>
+
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            type="submit"
+            disabled={saving || !editTitle.trim()}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-colors disabled:opacity-50 min-h-[32px]"
+            style={{ backgroundColor: 'var(--color-orange)' }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1.5 min-h-[32px]"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  // ── View mode ──────────────────────────────────────────────────────────────
   return (
     <div
       className="relative rounded-xl border p-3 space-y-2 cursor-pointer transition-all"
-      style={{ backgroundColor: 'var(--color-card)', borderColor: hovered ? '#2a3a5c' : 'var(--color-border)' }}
+      style={{
+        backgroundColor: 'var(--color-card)',
+        borderColor: hovered ? '#2a3a5c' : 'var(--color-border)',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setShowMove(false) }}
-      onClick={() => setExpanded((p) => !p)}
+      onClick={openEdit}
     >
       {/* Delete button */}
       {hovered && (
@@ -103,7 +260,7 @@ function TaskCard({
       <p className="text-sm font-medium text-slate-100 pr-5 leading-snug">{task.title}</p>
 
       {task.notes && (
-        <p className={`text-xs text-slate-400 leading-relaxed ${expanded ? '' : 'line-clamp-2'}`}>
+        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
           {task.notes}
         </p>
       )}
@@ -120,7 +277,7 @@ function TaskCard({
         <div className="relative ml-auto" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={(e) => { e.stopPropagation(); setShowMove((p) => !p) }}
-            className="text-[10px] text-slate-500 hover:text-slate-300 border border-slate-700 hover:border-slate-500 rounded px-1.5 py-0.5 transition-colors flex items-center gap-1"
+            className="text-[10px] text-slate-500 hover:text-slate-300 border border-slate-700 hover:border-slate-500 rounded px-1.5 py-0.5 transition-colors flex items-center gap-1 min-h-[24px]"
           >
             Move ▾
           </button>
@@ -133,7 +290,7 @@ function TaskCard({
                 <button
                   key={s}
                   onClick={(e) => { e.stopPropagation(); setShowMove(false); onStatusChange(task.id, s) }}
-                  className="w-full text-left text-xs px-3 py-1.5 text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                  className="w-full text-left text-xs px-3 py-1.5 text-slate-400 hover:text-white hover:bg-white/5 transition-colors min-h-[32px]"
                 >
                   {STATUS_LABELS[s]}
                 </button>
@@ -153,19 +310,29 @@ function InlineAddTask({
   onAdd,
 }: {
   status: TaskStatus
-  onAdd: (title: string, status: TaskStatus) => Promise<void>
+  onAdd: (fields: { title: string; notes: string; assignee: string; category: TaskCategory; status: TaskStatus }) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
+  const [notes, setNotes] = useState('')
+  const [assignee, setAssignee] = useState('Sax')
+  const [category, setCategory] = useState<TaskCategory>('searchline')
   const [saving, setSaving] = useState(false)
+
+  const reset = () => {
+    setTitle('')
+    setNotes('')
+    setAssignee('Sax')
+    setCategory('searchline')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
     setSaving(true)
     try {
-      await onAdd(title.trim(), status)
-      setTitle('')
+      await onAdd({ title: title.trim(), notes: notes.trim(), assignee: assignee.trim() || 'Sax', category, status })
+      reset()
       setOpen(false)
     } finally {
       setSaving(false)
@@ -176,7 +343,7 @@ function InlineAddTask({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 w-full py-1 px-1 rounded transition-colors hover:bg-white/5"
+        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 w-full py-1 px-1 rounded transition-colors hover:bg-white/5 min-h-[32px]"
       >
         <span className="text-base leading-none">+</span> Add task
       </button>
@@ -186,30 +353,64 @@ function InlineAddTask({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-2 p-2.5 rounded-xl border"
-      style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
+      className="flex flex-col gap-2.5 p-2.5 rounded-xl border"
+      style={{ backgroundColor: 'var(--color-card)', borderColor: '#FF6B2B55' }}
     >
+      <p className="text-[10px] text-orange-400 font-semibold uppercase tracking-wide">New Task</p>
+
       <input
         autoFocus
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Task title…"
-        className="text-sm bg-transparent border-none outline-none text-slate-100 placeholder:text-slate-600 w-full"
+        className={inputCls}
+        style={inputStyle}
       />
+
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Notes (optional)…"
+        rows={2}
+        className={`${inputCls} resize-none`}
+        style={inputStyle}
+      />
+
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          type="text"
+          value={assignee}
+          onChange={(e) => setAssignee(e.target.value)}
+          placeholder="Assignee"
+          className={inputCls}
+          style={inputStyle}
+        />
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value as TaskCategory)}
+          className={`${inputCls} cursor-pointer`}
+          style={inputStyle}
+        >
+          {ALL_CATEGORIES.map((c) => (
+            <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="flex items-center gap-2">
         <button
           type="submit"
           disabled={saving || !title.trim()}
-          className="text-xs px-3 py-1 rounded-lg font-medium text-white transition-colors disabled:opacity-50"
+          className="text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-colors disabled:opacity-50 min-h-[32px]"
           style={{ backgroundColor: 'var(--color-orange)' }}
         >
           {saving ? 'Adding…' : 'Add'}
         </button>
         <button
           type="button"
-          onClick={() => { setOpen(false); setTitle('') }}
-          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          onClick={() => { setOpen(false); reset() }}
+          className="text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1.5 min-h-[32px]"
         >
           Cancel
         </button>
@@ -221,7 +422,7 @@ function InlineAddTask({
 // ─── KanbanColumn ─────────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  status, label, emoji, tasks, onDelete, onStatusChange, onAddTask,
+  status, label, emoji, tasks, onDelete, onStatusChange, onAddTask, onEdit,
 }: {
   status: TaskStatus
   label: string
@@ -229,7 +430,8 @@ function KanbanColumn({
   tasks: TaskItem[]
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: TaskStatus) => void
-  onAddTask: (title: string, status: TaskStatus) => Promise<void>
+  onAddTask: (fields: { title: string; notes: string; assignee: string; category: TaskCategory; status: TaskStatus }) => Promise<void>
+  onEdit: (id: string, fields: Partial<TaskItem>) => Promise<void>
 }) {
   const headerStyle = COLUMN_HEADER_COLOR[status]
 
@@ -258,6 +460,7 @@ function KanbanColumn({
               task={t}
               onDelete={onDelete}
               onStatusChange={onStatusChange}
+              onEdit={onEdit}
             />
           ))
         )}
@@ -307,17 +510,35 @@ export default function TaskBoard() {
     await supabase.from('task_items').update({ status }).eq('id', id)
   }
 
-  const handleAddTask = async (title: string, status: TaskStatus) => {
+  const handleEdit = async (id: string, fields: Partial<TaskItem>) => {
+    if (!supabase) return
+    const { title, notes, status, category, assignee } = fields
+    const { error: err } = await supabase
+      .from('task_items')
+      .update({ title, notes, status, category, assignee })
+      .eq('id', id)
+    if (!err) {
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...fields } : t)))
+    }
+  }
+
+  const handleAddTask = async (fields: {
+    title: string
+    notes: string
+    assignee: string
+    category: TaskCategory
+    status: TaskStatus
+  }) => {
     if (!supabase) return
     const { data, error: err } = await supabase
       .from('task_items')
       .insert({
-        title,
-        status,
-        category: 'searchline',
-        assignee: 'Sax',
-        notes: '',
-        position: 0,
+        title: fields.title,
+        status: fields.status,
+        category: fields.category,
+        assignee: fields.assignee || 'Sax',
+        notes: fields.notes || null,
+        position: Date.now(),
       })
       .select()
       .single()
@@ -377,6 +598,7 @@ export default function TaskBoard() {
                 onDelete={handleDelete}
                 onStatusChange={handleStatusChange}
                 onAddTask={handleAddTask}
+                onEdit={handleEdit}
               />
             ))}
           </div>
