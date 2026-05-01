@@ -172,6 +172,12 @@ function Nav() {
         >
           Tasks
         </Link>
+        <Link
+          to="/automation"
+          style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}
+        >
+          ⚙️ Automation
+        </Link>
       </div>
     </nav>
   )
