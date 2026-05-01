@@ -265,6 +265,21 @@ export function Home() {
             >
               View Task Board →
             </Link>
+            <Link
+              to="/automation"
+              style={{
+                background: '#1e293b',
+                color: '#f8fafc',
+                padding: '10px 20px',
+                borderRadius: 8,
+                textDecoration: 'none',
+                fontSize: 14,
+                fontWeight: 600,
+                border: '1px solid #334155',
+              }}
+            >
+              ⚙️ Automation →
+            </Link>
             <a
               href="https://interview-engine-searchline.vercel.app/analytics"
               target="_blank"
