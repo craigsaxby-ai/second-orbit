@@ -18,6 +18,71 @@ interface TaskItem {
   updated_at: string
 }
 
+// ─── Task Templates ──────────────────────────────────────────────────────────
+
+interface TemplateTask {
+  title: string
+  category: TaskCategory
+  assignee: string
+}
+
+interface TaskTemplate {
+  name: string
+  emoji: string
+  description: string
+  tasks: TemplateTask[]
+}
+
+const TASK_TEMPLATES: TaskTemplate[] = [
+  {
+    name: 'New Feature Sprint',
+    emoji: '⚡',
+    description: 'Standard feature build: design → build → review → ship',
+    tasks: [
+      { title: 'Define spec and acceptance criteria', category: 'second-orbit', assignee: 'Sax' },
+      { title: 'Build feature — frontend', category: 'second-orbit', assignee: 'ANT' },
+      { title: 'Build feature — backend/API', category: 'second-orbit', assignee: 'ANT' },
+      { title: 'QA and test on staging', category: 'second-orbit', assignee: 'Sax' },
+      { title: 'Deploy to production', category: 'second-orbit', assignee: 'ANT' },
+    ],
+  },
+  {
+    name: 'Product Polish Pass',
+    emoji: '✨',
+    description: 'UI/UX polish, copy improvements, responsiveness',
+    tasks: [
+      { title: 'Audit all pages for UX gaps', category: 'second-orbit', assignee: 'Nova' },
+      { title: 'Fix mobile responsiveness', category: 'second-orbit', assignee: 'ANT' },
+      { title: 'Polish copy and empty states', category: 'second-orbit', assignee: 'ANT' },
+      { title: 'Test end-to-end flow', category: 'second-orbit', assignee: 'Sax' },
+    ],
+  },
+  {
+    name: 'Public Launch Prep',
+    emoji: '🚀',
+    description: 'Everything needed before going public',
+    tasks: [
+      { title: 'Set all env vars in Vercel', category: 'infrastructure', assignee: 'Sax' },
+      { title: 'Set up Supabase Auth + RLS policies', category: 'infrastructure', assignee: 'ANT' },
+      { title: 'Configure custom domain', category: 'infrastructure', assignee: 'Sax' },
+      { title: 'Write privacy policy + terms', category: 'second-orbit', assignee: 'Sax' },
+      { title: 'SEO: meta tags, og:image, sitemap', category: 'second-orbit', assignee: 'ANT' },
+      { title: 'Smoke test all flows', category: 'second-orbit', assignee: 'Sax' },
+    ],
+  },
+  {
+    name: 'Searchline Client Onboarding',
+    emoji: '👋',
+    description: 'Tasks to onboard a new Searchline client',
+    tasks: [
+      { title: 'Create demo project in Searchline Engine', category: 'searchline', assignee: 'Sax' },
+      { title: 'Send Erica pre-screen link to candidate', category: 'searchline', assignee: 'Sax' },
+      { title: 'Review scored shortlist with client', category: 'searchline', assignee: 'Sax' },
+      { title: 'Follow up: gather client feedback', category: 'searchline', assignee: 'Sax' },
+    ],
+  },
+]
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const COLUMNS: { status: TaskStatus; label: string; emoji: string }[] = [
@@ -313,6 +378,191 @@ function TaskCard({
   )
 }
 
+// ─── TemplatesModal ──────────────────────────────────────────────────────────
+
+function TemplatesModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: (count: number) => void
+}) {
+  const [selected, setSelected] = useState<TaskTemplate | null>(null)
+  const [prefix, setPrefix] = useState('')
+  const [categoryOverride, setCategoryOverride] = useState<TaskCategory | ''>('')
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  const handleCreate = async () => {
+    if (!selected || !supabase) return
+    setSaving(true)
+    const now = Date.now()
+    const rows = selected.tasks.map((t, i) => ({
+      title: prefix.trim() ? `${prefix.trim()}: ${t.title}` : t.title,
+      category: (categoryOverride || t.category) as TaskCategory,
+      assignee: t.assignee,
+      status: 'planned' as TaskStatus,
+      notes: null,
+      position: now + i,
+    }))
+    const { error } = await supabase.from('task_items').insert(rows)
+    setSaving(false)
+    if (!error) {
+      setToast(`✓ ${rows.length} task${rows.length !== 1 ? 's' : ''} added to Planned`)
+      setTimeout(() => {
+        onCreated(rows.length)
+        onClose()
+      }, 1200)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(10,15,30,0.9)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="w-full max-w-xl rounded-2xl border shadow-2xl flex flex-col"
+        style={{ backgroundColor: '#0A0F1E', borderColor: '#1E2740', maxHeight: '90vh' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#1E2740' }}>
+          <div>
+            <h2 className="text-base font-semibold text-white">Task Templates</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Pick a template to bulk-create tasks in Planned</p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+          {/* Template grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {TASK_TEMPLATES.map((tpl) => {
+              const isSelected = selected?.name === tpl.name
+              return (
+                <button
+                  key={tpl.name}
+                  onClick={() => setSelected(isSelected ? null : tpl)}
+                  className="text-left rounded-xl border p-4 transition-all"
+                  style={{
+                    backgroundColor: isSelected ? 'rgba(255,107,43,0.08)' : '#141929',
+                    borderColor: isSelected ? '#FF6B2B' : '#1E2740',
+                    outline: 'none',
+                  }}
+                >
+                  <div className="text-2xl mb-2">{tpl.emoji}</div>
+                  <div className="text-sm font-semibold text-white mb-1">{tpl.name}</div>
+                  <div className="text-xs text-slate-400 leading-relaxed mb-2">{tpl.description}</div>
+                  <div
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-full inline-block"
+                    style={{ background: '#1E2740', color: '#94a3b8' }}
+                  >
+                    {tpl.tasks.length} tasks
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Options (shown when template selected) */}
+          {selected && (
+            <div className="space-y-3 pt-2">
+              <div className="h-px" style={{ background: '#1E2740' }} />
+
+              {/* Task preview */}
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-2">Tasks to create</p>
+                <ul className="space-y-1">
+                  {selected.tasks.map((t, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-slate-600 text-xs mt-0.5">→</span>
+                      <span className="text-xs text-slate-300">
+                        {prefix.trim() ? `${prefix.trim()}: ` : ''}{t.title}
+                        <span className="text-slate-600 ml-1">@{t.assignee}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="h-px" style={{ background: '#1E2740' }} />
+
+              {/* Prefix input */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-500 uppercase tracking-wide">
+                  Add prefix to task titles (optional)
+                </label>
+                <input
+                  type="text"
+                  value={prefix}
+                  onChange={(e) => setPrefix(e.target.value)}
+                  placeholder="e.g. Searchline Auth"
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </div>
+
+              {/* Category override */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-500 uppercase tracking-wide">
+                  Override category (optional — defaults to template values)
+                </label>
+                <select
+                  value={categoryOverride}
+                  onChange={(e) => setCategoryOverride(e.target.value as TaskCategory | '')}
+                  className={`${inputCls} cursor-pointer`}
+                  style={inputStyle}
+                >
+                  <option value="">Use template defaults</option>
+                  {ALL_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-3 p-6 border-t" style={{ borderColor: '#1E2740' }}>
+          {toast ? (
+            <span className="text-sm text-green-400 font-medium">{toast}</span>
+          ) : (
+            <>
+              <button
+                onClick={handleCreate}
+                disabled={!selected || saving}
+                className="text-sm px-4 py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-40"
+                style={{ backgroundColor: 'var(--color-orange)' }}
+              >
+                {saving ? 'Creating…' : selected ? `Create ${selected.tasks.length} tasks` : 'Select a template'}
+              </button>
+              <button
+                onClick={onClose}
+                className="text-sm text-slate-400 hover:text-slate-200 transition-colors px-3 py-2"
+              >
+                Cancel
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── AddTaskModal ─────────────────────────────────────────────────────────────
 
 const QUICK_ASSIGNEES = ['Sax', 'Nova', 'ANT', 'Echo'] as const
@@ -547,6 +797,7 @@ export default function TaskBoard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false)
 
   const loadTasks = async () => {
     setLoading(true)
@@ -648,6 +899,12 @@ export default function TaskBoard() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowTemplatesModal(true)}
+              className="text-xs font-medium text-slate-300 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              📋 Templates
+            </button>
+            <button
               onClick={() => setShowAddModal(true)}
               className="text-xs font-medium text-white px-3 py-1.5 rounded-lg transition-colors"
               style={{ backgroundColor: 'var(--color-orange)' }}
@@ -694,6 +951,15 @@ export default function TaskBoard() {
               />
             ))}
           </div>
+        )}
+
+        {showTemplatesModal && (
+          <TemplatesModal
+            onClose={() => setShowTemplatesModal(false)}
+            onCreated={async (_count) => {
+              await loadTasks()
+            }}
+          />
         )}
 
         {showAddModal && (
