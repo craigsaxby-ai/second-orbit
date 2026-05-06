@@ -5,6 +5,33 @@ import { supabase } from '../lib/supabase'
 
 type PostStatus = 'drafted' | 'approved' | 'scheduled' | 'posted'
 
+interface RadarMetric {
+  id: string
+  week_of: string
+  channel: string
+  post_impressions: number
+  followers: number
+  profile_viewers: number
+  search_appearances: number
+  posts_published: number
+  comments_received: number
+  likes_received: number
+  best_post: string | null
+  notes: string | null
+  created_at: string
+}
+
+interface RadarAsset {
+  id: string
+  name: string
+  asset_type: string
+  content: string
+  status: string
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
 interface RadarPost {
   id: string
   date: string | null
@@ -421,6 +448,221 @@ function StatsBar({ posts }: { posts: RadarPost[] }) {
 
 // ─── Radar page ───────────────────────────────────────────────────────────────
 
+
+// --- MetricsSection
+
+function MetricsSection() {
+  const [metrics, setMetrics] = useState<RadarMetric[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!supabase) { setLoading(false); return }
+    supabase
+      .from('radar_metrics')
+      .select('*')
+      .order('week_of', { ascending: false })
+      .then(({ data }) => {
+        setMetrics((data ?? []) as RadarMetric[])
+        setLoading(false)
+        return
+      })
+      .then(undefined, () => setLoading(false))
+  }, [])
+
+  const baseline = metrics[metrics.length - 1] ?? null
+
+  return (
+    <div style={{ marginTop: 56 }}>
+      <h2 style={{ color: '#f8fafc', fontSize: 20, fontWeight: 700, margin: '0 0 4px' }}>
+        📊 Metrics Tracker
+      </h2>
+      <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 20px' }}>
+        Weekly LinkedIn stats — Craig’s personal account
+      </p>
+
+      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading metrics…</p>}
+
+      {!loading && metrics.length === 0 && (
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '32px 24px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+          No metrics yet. Run the migration in Supabase Studio to activate this section.
+        </div>
+      )}
+
+      {!loading && metrics.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['Week', 'Followers', 'Δ Since Day 0', 'Impressions', 'Profile Views', 'Posts', 'Notes'].map((h) => (
+                  <th key={h} style={{ background: '#0f172a', color: '#64748b', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '10px 14px', textAlign: 'left', borderBottom: '1px solid #1e293b' }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.map((m, i) => {
+                const isBaseline = i === metrics.length - 1
+                const delta = baseline ? m.followers - baseline.followers : null
+                return (
+                  <tr key={m.id} style={{ background: isBaseline ? 'rgba(59,130,246,0.06)' : 'transparent' }}>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#f8fafc', fontWeight: isBaseline ? 700 : 400 }}>
+                      {new Date(m.week_of).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                      {isBaseline && (
+                        <span style={{ marginLeft: 8, background: 'rgba(59,130,246,0.2)', color: '#60a5fa', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>Day 0</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.followers.toLocaleString()}</td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a' }}>
+                      {isBaseline ? (
+                        <span style={{ color: '#64748b' }}>— baseline</span>
+                      ) : delta !== null ? (
+                        <span style={{ color: delta >= 0 ? '#4ade80' : '#f87171', fontWeight: 600 }}>{delta >= 0 ? '+' : ''}{delta.toLocaleString()}</span>
+                      ) : '—'}
+                    </td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.post_impressions?.toLocaleString() ?? '—'}</td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.profile_viewers?.toLocaleString() ?? '—'}</td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.posts_published ?? '—'}</td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#64748b', fontSize: 12, maxWidth: 200 }}>{m.notes ?? '—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- AssetsSection
+
+const ASSET_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  linkedin_page:    { label: 'LinkedIn Page',    color: '#60a5fa', bg: 'rgba(59,130,246,0.15)' },
+  linkedin_post:    { label: 'LinkedIn Post',    color: '#f97316', bg: 'rgba(249,115,22,0.15)' },
+  erica_field_note: { label: 'Erica Field Note', color: '#c084fc', bg: 'rgba(168,85,247,0.15)' },
+}
+
+function AssetCard({ asset }: { asset: RadarAsset }) {
+  const [expanded, setExpanded] = useState(false)
+  const typeStyle = ASSET_TYPE_LABELS[asset.asset_type] ?? { label: asset.asset_type, color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' }
+
+  return (
+    <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer' }} onClick={() => setExpanded((x) => !x)}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <span style={{ background: typeStyle.bg, color: typeStyle.color, fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 9999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{typeStyle.label}</span>
+            <span style={{ background: asset.status === 'draft' ? 'rgba(100,116,139,0.2)' : 'rgba(34,197,94,0.15)', color: asset.status === 'draft' ? '#94a3b8' : '#4ade80', fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 9999, textTransform: 'capitalize' }}>{asset.status}</span>
+          </div>
+          <p style={{ color: '#f8fafc', fontSize: 14, fontWeight: 600, margin: 0 }}>{asset.name}</p>
+        </div>
+        <span style={{ color: '#64748b', fontSize: 18, flexShrink: 0, display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</span>
+      </div>
+      {expanded && (
+        <div style={{ borderTop: '1px solid #1e293b', padding: 16, background: '#020617' }}>
+          <pre style={{ color: '#cbd5e1', fontSize: 12, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, fontFamily: 'system-ui, sans-serif' }}>{asset.content}</pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AssetsSection() {
+  const [assets, setAssets] = useState<RadarAsset[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!supabase) { setLoading(false); return }
+    supabase
+      .from('radar_assets')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        setAssets((data ?? []) as RadarAsset[])
+        setLoading(false)
+        return
+      })
+      .then(undefined, () => setLoading(false))
+  }, [])
+
+  const groups = [
+    { key: 'linkedin_page',    assets: assets.filter((a) => a.asset_type === 'linkedin_page') },
+    { key: 'linkedin_post',    assets: assets.filter((a) => a.asset_type === 'linkedin_post') },
+    { key: 'erica_field_note', assets: assets.filter((a) => a.asset_type === 'erica_field_note') },
+  ].filter((g) => g.assets.length > 0)
+
+  return (
+    <div style={{ marginTop: 56 }}>
+      <h2 style={{ color: '#f8fafc', fontSize: 20, fontWeight: 700, margin: '0 0 4px' }}>
+        🗂 Assets Library
+      </h2>
+      <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 20px' }}>
+        Searchline LinkedIn page copy, starter posts, and Erica Field Notes
+      </p>
+
+      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading assets…</p>}
+
+      {!loading && assets.length === 0 && (
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '32px 24px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+          No assets yet. Run the migration in Supabase Studio to activate this section.
+        </div>
+      )}
+
+      {!loading && groups.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          {groups.map((group) => {
+            const typeStyle = ASSET_TYPE_LABELS[group.key] ?? { label: group.key, color: '#94a3b8', bg: '' }
+            return (
+              <div key={group.key}>
+                <h3 style={{ color: typeStyle.color, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
+                  {typeStyle.label} ({group.assets.length})
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {group.assets.map((asset) => <AssetCard key={asset.id} asset={asset} />)}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- WeeklyRhythmSection
+
+const WEEKLY_RHYTHM = [
+  { day: 'Monday',    emoji: '🔍', task: 'Trend scan',               detail: 'Review top posts, competitors, emerging angles' },
+  { day: 'Tuesday',   emoji: '✏️',  task: 'Draft content',           detail: "Write the week's posts based on approved topics" },
+  { day: 'Wednesday', emoji: '🛡️', task: 'Risk review',            detail: 'Check drafts for tone, accuracy, compliance' },
+  { day: 'Thursday',  emoji: '✅',  task: 'Approve + schedule',      detail: 'Final approval and queue posts for publishing' },
+  { day: 'Friday',    emoji: '📊', task: 'Report + update metrics',  detail: 'Log weekly stats and update Radar metrics tracker' },
+]
+
+function WeeklyRhythmSection() {
+  return (
+    <div style={{ marginTop: 56, marginBottom: 64 }}>
+      <h2 style={{ color: '#f8fafc', fontSize: 20, fontWeight: 700, margin: '0 0 4px' }}>
+        📅 Weekly Rhythm
+      </h2>
+      <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 20px' }}>
+        Operating cadence for the 14-day Radar test
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+        {WEEKLY_RHYTHM.map((item) => (
+          <div key={item.day} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>{item.emoji}</div>
+            <p style={{ color: '#60a5fa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 4px' }}>{item.day}</p>
+            <p style={{ color: '#f8fafc', fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>{item.task}</p>
+            <p style={{ color: '#64748b', fontSize: 12, margin: 0, lineHeight: 1.5 }}>{item.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Radar() {
   const [posts, setPosts] = useState<RadarPost[]>([])
   const [loading, setLoading] = useState(true)
@@ -607,6 +849,11 @@ export default function Radar() {
           </>
         )}
       </div>
+
+        {/* New sections */}
+        <MetricsSection />
+        <AssetsSection />
+        <WeeklyRhythmSection />
 
       {/* Spin animation */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
