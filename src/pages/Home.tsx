@@ -178,6 +178,24 @@ function Nav() {
         >
           ⚙️ Automation
         </Link>
+        <Link
+          to="/ai-framework"
+          style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}
+        >
+          🧠 AI Framework
+        </Link>
+        <Link
+          to="/marketing-strategy"
+          style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}
+        >
+          📣 Marketing
+        </Link>
+        <Link
+          to="/radar"
+          style={{ color: '#94a3b8', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}
+        >
+          📡 Radar
+        </Link>
       </div>
     </nav>
   )
