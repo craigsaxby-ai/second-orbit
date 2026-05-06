@@ -43,17 +43,17 @@ interface RadarPost {
   risk_status: string | null
   risk_notes: string | null
   status: PostStatus
+  image_url: string | null
   created_at: string
   updated_at: string
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const CHANNEL_STYLES: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  CL:  { label: 'Craig LinkedIn',          color: '#fff',     bg: '#3b82f6',    border: '#2563eb' },
-  SL:  { label: 'Searchline Page',         color: '#fff',     bg: '#f97316',    border: '#ea580c' },
-  EFN: { label: 'Erica Field Note',        color: '#fff',     bg: '#a855f7',    border: '#9333ea' },
-  CP:  { label: 'Comment Prompt',          color: '#fff',     bg: '#22c55e',    border: '#16a34a' },
+const CHANNEL_STYLES: Record<string, { label: string; color: string; bg: string; border: string; placeholder: string }> = {
+  CL:  { label: 'Craig LinkedIn',  color: '#fff', bg: '#3b82f6', border: '#2563eb', placeholder: '#1d4ed8' },
+  SL:  { label: 'Searchline Page', color: '#fff', bg: '#f97316', border: '#ea580c', placeholder: '#c2410c' },
+  CP:  { label: 'Comment Prompt',  color: '#fff', bg: '#22c55e', border: '#16a34a', placeholder: '#15803d' },
 }
 
 const RISK_DOT: Record<string, string> = {
@@ -237,7 +237,30 @@ function PostModal({
         </div>
 
         {/* Body */}
-        <div style={{ overflowY: 'auto', flex: 1, padding: 24 }}>
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+          {/* Image */}
+          {post.image_url ? (
+            <div style={{ width: '100%', height: 240, overflow: 'hidden' }}>
+              <img
+                src={post.image_url}
+                alt={post.topic ?? ''}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
+          ) : (() => {
+            const ch = CHANNEL_STYLES[post.channel ?? '']
+            return (
+              <div style={{
+                width: '100%', height: 120,
+                background: ch ? ch.placeholder : '#1e293b',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 32 }}>📡</span>
+              </div>
+            )
+          })()}
+
+          <div style={{ padding: 24 }}>
           {/* Hook */}
           {post.hook && (
             <div style={{ marginBottom: 20 }}>
@@ -286,6 +309,7 @@ function PostModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ color: '#64748b', fontSize: 12 }}>Status:</span>
             <StatusBadge status={post.status} />
+          </div>
           </div>
         </div>
 
@@ -352,14 +376,36 @@ function PostCard({ post, onClick }: { post: RadarPost; onClick: () => void }) {
         background: hovered ? '#1e293b' : '#0f172a',
         border: `1px solid ${hovered ? '#334155' : '#1e293b'}`,
         borderRadius: 12,
-        padding: 16,
+        overflow: 'hidden',
         cursor: 'pointer',
         transition: 'all 0.15s ease',
         display: 'flex',
         flexDirection: 'column',
-        gap: 10,
       }}
     >
+      {/* Card image */}
+      {post.image_url ? (
+        <div style={{ width: '100%', height: 160, overflow: 'hidden', flexShrink: 0 }}>
+          <img
+            src={post.image_url}
+            alt={post.topic ?? ''}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        </div>
+      ) : (() => {
+        const ch = CHANNEL_STYLES[post.channel ?? '']
+        return (
+          <div style={{
+            width: '100%', height: 80, flexShrink: 0,
+            background: ch ? ch.placeholder : '#1e293b',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 24 }}>📡</span>
+          </div>
+        )
+      })()}
+
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
       {/* Top row: channel + date */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ChannelBadge channel={post.channel} />
@@ -386,6 +432,7 @@ function PostCard({ post, onClick }: { post: RadarPost; onClick: () => void }) {
         <span style={{ fontSize: 16 }} title={post.risk_status ?? ''}>
           {riskDot(post.risk_status)}
         </span>
+      </div>
       </div>
     </div>
   )
@@ -538,9 +585,8 @@ function MetricsSection() {
 // --- AssetsSection
 
 const ASSET_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  linkedin_page:    { label: 'LinkedIn Page',    color: '#60a5fa', bg: 'rgba(59,130,246,0.15)' },
-  linkedin_post:    { label: 'LinkedIn Post',    color: '#f97316', bg: 'rgba(249,115,22,0.15)' },
-  erica_field_note: { label: 'Erica Field Note', color: '#c084fc', bg: 'rgba(168,85,247,0.15)' },
+  linkedin_page: { label: 'LinkedIn Page', color: '#60a5fa', bg: 'rgba(59,130,246,0.15)' },
+  linkedin_post: { label: 'LinkedIn Post', color: '#f97316', bg: 'rgba(249,115,22,0.15)' },
 }
 
 function AssetCard({ asset }: { asset: RadarAsset }) {
@@ -587,9 +633,8 @@ function AssetsSection() {
   }, [])
 
   const groups = [
-    { key: 'linkedin_page',    assets: assets.filter((a) => a.asset_type === 'linkedin_page') },
-    { key: 'linkedin_post',    assets: assets.filter((a) => a.asset_type === 'linkedin_post') },
-    { key: 'erica_field_note', assets: assets.filter((a) => a.asset_type === 'erica_field_note') },
+    { key: 'linkedin_page', assets: assets.filter((a) => a.asset_type === 'linkedin_page') },
+    { key: 'linkedin_post', assets: assets.filter((a) => a.asset_type === 'linkedin_post') },
   ].filter((g) => g.assets.length > 0)
 
   return (
@@ -598,7 +643,7 @@ function AssetsSection() {
         🗂 Assets Library
       </h2>
       <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 20px' }}>
-        Searchline LinkedIn page copy, starter posts, and Erica Field Notes
+        Searchline LinkedIn page copy and starter posts
       </p>
 
       {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading assets…</p>}
