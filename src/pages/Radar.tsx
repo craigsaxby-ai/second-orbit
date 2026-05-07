@@ -409,7 +409,17 @@ function PostCard({ post, onClick }: { post: RadarPost; onClick: () => void }) {
       {/* Top row: channel + date */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <ChannelBadge channel={post.channel} />
-        <span style={{ color: '#64748b', fontSize: 12 }}>{formatDate(post.date)}</span>
+        <span style={{
+          color: '#93c5fd',
+          fontSize: 12,
+          fontWeight: 700,
+          background: 'rgba(59,130,246,0.1)',
+          border: '1px solid rgba(59,130,246,0.2)',
+          borderRadius: 6,
+          padding: '2px 8px',
+        }}>
+          📅 {formatDate(post.date)}
+        </span>
       </div>
 
       {/* Topic */}
@@ -440,55 +450,76 @@ function PostCard({ post, onClick }: { post: RadarPost; onClick: () => void }) {
 
 // ─── StatsBar ─────────────────────────────────────────────────────────────────
 
-function StatsBar({ posts }: { posts: RadarPost[] }) {
+function StatsBar({ posts, onBulkApprove, bulkApproving }: {
+  posts: RadarPost[]
+  onBulkApprove: () => void
+  bulkApproving: boolean
+}) {
   const counts = ALL_STATUSES.reduce((acc, s) => {
     acc[s] = posts.filter((p) => p.status === s).length
     return acc
   }, {} as Record<string, number>)
+  const flagged = posts.filter((p) => p.risk_status?.toLowerCase() === 'red').length
+  const approvable = posts.filter((p) =>
+    p.status === 'drafted' && p.risk_status?.toLowerCase() !== 'red'
+  ).length
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 12,
-        flexWrap: 'wrap',
-        marginBottom: 32,
-      }}
-    >
-      {ALL_STATUSES.map((s) => {
-        const sc = STATUS_COLORS[s]
-        return (
-          <div
-            key={s}
-            style={{
-              background: sc.bg,
-              border: `1px solid ${sc.text}22`,
-              borderRadius: 8,
-              padding: '8px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <span style={{ color: sc.text, fontSize: 18, fontWeight: 700 }}>{counts[s]}</span>
-            <span style={{ color: sc.text, fontSize: 12, textTransform: 'capitalize' }}>{s}</span>
-          </div>
-        )
-      })}
-      <div
-        style={{
-          background: 'rgba(248,250,252,0.04)',
-          border: '1px solid #1e293b',
-          borderRadius: 8,
-          padding: '8px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        <span style={{ color: '#f8fafc', fontSize: 18, fontWeight: 700 }}>{posts.length}</span>
-        <span style={{ color: '#64748b', fontSize: 12 }}>total</span>
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        {/* Total */}
+        <div style={{
+          background: 'rgba(248,250,252,0.04)', border: '1px solid #1e293b',
+          borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ color: '#f8fafc', fontSize: 18, fontWeight: 700 }}>{posts.length}</span>
+          <span style={{ color: '#64748b', fontSize: 12 }}>Total</span>
+        </div>
+
+        {/* Status counts */}
+        {ALL_STATUSES.map((s) => {
+          const sc = STATUS_COLORS[s]
+          return (
+            <div key={s} style={{
+              background: sc.bg, border: `1px solid ${sc.text}22`,
+              borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{ color: sc.text, fontSize: 18, fontWeight: 700 }}>{counts[s]}</span>
+              <span style={{ color: sc.text, fontSize: 12, textTransform: 'capitalize' }}>{s}</span>
+            </div>
+          )
+        })}
+
+        {/* Flagged */}
+        <div style={{
+          background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)',
+          borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ color: '#f87171', fontSize: 18, fontWeight: 700 }}>{flagged}</span>
+          <span style={{ color: '#f87171', fontSize: 12 }}>🔴 Flagged</span>
+        </div>
       </div>
+
+      {/* Bulk approve button */}
+      {approvable > 0 && (
+        <button
+          onClick={onBulkApprove}
+          disabled={bulkApproving}
+          style={{
+            background: bulkApproving ? 'rgba(34,197,94,0.3)' : 'rgba(34,197,94,0.15)',
+            border: '1px solid rgba(34,197,94,0.4)',
+            borderRadius: 8,
+            padding: '8px 20px',
+            color: '#4ade80',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: bulkApproving ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          {bulkApproving ? 'Approving…' : `✓ Bulk Approve All (${approvable} posts)`}
+        </button>
+      )}
     </div>
   )
 }
@@ -708,17 +739,25 @@ function WeeklyRhythmSection() {
   )
 }
 
+const TABLE_NOT_FOUND_CODES = ['42P01', 'PGRST116']
+function isTableMissingError(msg: string): boolean {
+  return msg.toLowerCase().includes('does not exist') || msg.toLowerCase().includes('relation') || TABLE_NOT_FOUND_CODES.some((c) => msg.includes(c))
+}
+
 export default function Radar() {
   const [posts, setPosts] = useState<RadarPost[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [setupNeeded, setSetupNeeded] = useState(false)
   const [selected, setSelected] = useState<RadarPost | null>(null)
   const [filterStatus, setFilterStatus] = useState<PostStatus | 'all'>('all')
   const [filterChannel, setFilterChannel] = useState<string>('all')
+  const [bulkApproving, setBulkApproving] = useState(false)
 
   const loadPosts = async () => {
     setLoading(true)
     setError(null)
+    setSetupNeeded(false)
     if (!supabase) {
       setError('Supabase not configured — set VITE_SUPABASE_ANON_KEY in .env')
       setLoading(false)
@@ -729,7 +768,11 @@ export default function Radar() {
       .select('*')
       .order('date', { ascending: true })
     if (err) {
-      setError(err.message)
+      if (isTableMissingError(err.message) || isTableMissingError(err.code ?? '')) {
+        setSetupNeeded(true)
+      } else {
+        setError(err.message)
+      }
     } else {
       setPosts((data ?? []) as RadarPost[])
     }
@@ -747,6 +790,26 @@ export default function Radar() {
     if (!err) {
       setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status: 'approved' as PostStatus } : p))
     }
+  }
+
+  const handleBulkApprove = async () => {
+    if (!supabase) return
+    setBulkApproving(true)
+    const toApprove = posts.filter((p) =>
+      p.status === 'drafted' && p.risk_status?.toLowerCase() !== 'red'
+    )
+    if (toApprove.length === 0) { setBulkApproving(false); return }
+    const ids = toApprove.map((p) => p.id)
+    const { error: err } = await supabase
+      .from('radar_posts')
+      .update({ status: 'approved', updated_at: new Date().toISOString() })
+      .in('id', ids)
+    if (!err) {
+      setPosts((prev) =>
+        prev.map((p) => ids.includes(p.id) ? { ...p, status: 'approved' as PostStatus } : p)
+      )
+    }
+    setBulkApproving(false)
   }
 
   const filtered = posts.filter((p) => {
@@ -818,55 +881,94 @@ export default function Radar() {
           </div>
         )}
 
+        {/* Setup Needed */}
+        {!loading && setupNeeded && (
+          <div style={{
+            background: '#0f172a', border: '1px solid #f59e0b44',
+            borderRadius: 16, padding: '40px 32px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+            <h2 style={{ color: '#fbbf24', fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Setup needed</h2>
+            <p style={{ color: '#94a3b8', fontSize: 14, margin: '0 0 24px', lineHeight: 1.6 }}>
+              The <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4, color: '#f8fafc' }}>radar_posts</code> table doesn't exist yet.<br />
+              Run the Supabase migration to activate the content calendar.
+            </p>
+            <div style={{
+              background: '#020617', border: '1px solid #1e293b', borderRadius: 8,
+              padding: '16px 20px', textAlign: 'left', display: 'inline-block', maxWidth: 480, width: '100%',
+            }}>
+              <p style={{ color: '#64748b', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Steps</p>
+              <ol style={{ color: '#cbd5e1', fontSize: 13, lineHeight: 1.9, margin: 0, paddingLeft: 20 }}>
+                <li>Open <strong>Supabase Studio</strong> for your project</li>
+                <li>Go to <strong>SQL Editor</strong></li>
+                <li>Run the <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>radar_posts</code> migration from <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>supabase/migrations/</code></li>
+                <li>Click <strong>Refresh</strong> above</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
-        {!loading && !error && (
+        {!loading && !error && !setupNeeded && (
           <>
             {/* Stats bar */}
-            <StatsBar posts={posts} />
+            <StatsBar posts={posts} onBulkApprove={handleBulkApprove} bulkApproving={bulkApproving} />
 
-            {/* Filters */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
-              {/* Status filter */}
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as PostStatus | 'all')}
-                style={{
-                  background: '#0f172a',
-                  border: '1px solid #1e293b',
-                  borderRadius: 8,
-                  color: '#f8fafc',
-                  padding: '6px 12px',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  outline: 'none',
-                }}
-              >
-                <option value="all">All statuses</option>
-                {ALL_STATUSES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+            {/* Channel tab filter */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              {['all', ...channels].map((ch) => {
+                const active = filterChannel === ch
+                const style = ch !== 'all' ? CHANNEL_STYLES[ch as string] : null
+                return (
+                  <button
+                    key={ch as string}
+                    onClick={() => setFilterChannel(ch as string)}
+                    style={{
+                      background: active
+                        ? (style ? style.bg : '#3b82f6')
+                        : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${active ? (style ? style.border : '#2563eb') : '#1e293b'}`,
+                      borderRadius: 8,
+                      padding: '6px 14px',
+                      color: active ? '#fff' : '#94a3b8',
+                      fontSize: 13,
+                      fontWeight: active ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {ch === 'all' ? 'All' : ch as string}
+                  </button>
+                )
+              })}
+            </div>
 
-              {/* Channel filter */}
-              <select
-                value={filterChannel}
-                onChange={(e) => setFilterChannel(e.target.value)}
-                style={{
-                  background: '#0f172a',
-                  border: '1px solid #1e293b',
-                  borderRadius: 8,
-                  color: '#f8fafc',
-                  padding: '6px 12px',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  outline: 'none',
-                }}
-              >
-                <option value="all">All channels</option>
-                {channels.map((c) => (
-                  <option key={c} value={c ?? ''}>{c}</option>
-                ))}
-              </select>
+            {/* Status filter */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+              {(['all', ...ALL_STATUSES] as const).map((s) => {
+                const active = filterStatus === s
+                const sc = s !== 'all' ? STATUS_COLORS[s] : null
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setFilterStatus(s as PostStatus | 'all')}
+                    style={{
+                      background: active ? (sc ? sc.bg : 'rgba(255,255,255,0.08)') : 'transparent',
+                      border: `1px solid ${active ? (sc ? sc.text + '44' : '#475569') : '#1e293b'}`,
+                      borderRadius: 8,
+                      padding: '5px 12px',
+                      color: active ? (sc ? sc.text : '#f8fafc') : '#64748b',
+                      fontSize: 12,
+                      fontWeight: active ? 700 : 500,
+                      cursor: 'pointer',
+                      textTransform: 'capitalize',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {s === 'all' ? 'All statuses' : s}
+                  </button>
+                )
+              })}
             </div>
 
             {/* Card grid */}
