@@ -158,17 +158,24 @@ function PostModal({
   onClose,
   onApprove,
   onApproveWithImage,
+  onBackToDraft,
+  onDelete,
   onFieldSaved,
 }: {
   post: RadarPost
   onClose: () => void
   onApprove: (id: string) => Promise<void>
   onApproveWithImage: (id: string) => Promise<void>
+  onBackToDraft: (id: string) => Promise<void>
+  onDelete: (id: string) => Promise<void>
   onFieldSaved?: (id: string, field: 'hook' | 'content', value: string) => void
 }) {
   const [approving, setApproving] = useState(false)
   const [approvingWithImage, setApprovingWithImage] = useState(false)
   const [approved, setApproved] = useState(post.status === 'approved')
+  const [backingToDraft, setBackingToDraft] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   // Editable hook
   const [editingHook, setEditingHook] = useState(false)
@@ -205,6 +212,27 @@ function PostModal({
       setApproved(true)
     } finally {
       setApprovingWithImage(false)
+    }
+  }
+
+  const handleBackToDraft = async () => {
+    setBackingToDraft(true)
+    try {
+      await onBackToDraft(post.id)
+      setApproved(false)
+    } finally {
+      setBackingToDraft(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await onDelete(post.id)
+      onClose()
+    } finally {
+      setDeleting(false)
+      setDeleteConfirm(false)
     }
   }
 
@@ -489,63 +517,145 @@ function PostModal({
           style={{
             padding: '16px 24px',
             borderTop: '1px solid #1e293b',
-            display: 'flex', alignItems: 'center', gap: 12,
+            display: 'flex', flexDirection: 'column', gap: 12,
           }}
         >
-          {approved ? (
-            <span style={{ color: '#4ade80', fontSize: 14, fontWeight: 600 }}>✓ Approved</span>
-          ) : (
-            <>
+          {/* Primary actions row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {approved ? (
+              <span style={{ color: '#4ade80', fontSize: 14, fontWeight: 600 }}>✓ Approved</span>
+            ) : (
+              <>
+                <button
+                  onClick={handleApprove}
+                  disabled={approving || approvingWithImage}
+                  style={{
+                    background: '#22c55e',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 20px',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: (approving || approvingWithImage) ? 'not-allowed' : 'pointer',
+                    opacity: (approving || approvingWithImage) ? 0.7 : 1,
+                  }}
+                >
+                  {approving ? 'Approving…' : '✓ Approve'}
+                </button>
+                <button
+                  onClick={handleApproveWithImage}
+                  disabled={approving || approvingWithImage}
+                  style={{
+                    background: '#7c3aed',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 20px',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: (approving || approvingWithImage) ? 'not-allowed' : 'pointer',
+                    opacity: (approving || approvingWithImage) ? 0.7 : 1,
+                  }}
+                >
+                  {approvingWithImage ? 'Queuing…' : '🎨 Approve + Image'}
+                </button>
+              </>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: '1px solid #1e293b',
+                borderRadius: 8,
+                padding: '8px 16px',
+                fontSize: 14,
+                color: '#94a3b8',
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+
+          {/* Secondary actions row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid #1e293b', paddingTop: 10 }}>
+            {approved && (
               <button
-                onClick={handleApprove}
-                disabled={approving || approvingWithImage}
+                onClick={handleBackToDraft}
+                disabled={backingToDraft || deleting}
                 style={{
-                  background: '#22c55e',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '8px 20px',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: (approving || approvingWithImage) ? 'not-allowed' : 'pointer',
-                  opacity: (approving || approvingWithImage) ? 0.7 : 1,
+                  background: 'none',
+                  border: '1px solid #475569',
+                  borderRadius: 6,
+                  padding: '5px 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#94a3b8',
+                  cursor: (backingToDraft || deleting) ? 'not-allowed' : 'pointer',
+                  opacity: (backingToDraft || deleting) ? 0.6 : 1,
                 }}
               >
-                {approving ? 'Approving…' : '✓ Approve'}
+                {backingToDraft ? '…' : '↩ Back to Draft'}
               </button>
+            )}
+            {deleteConfirm ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#f87171', fontSize: 12 }}>Are you sure? This cannot be undone.</span>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #ef4444',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: '#f87171',
+                    cursor: deleting ? 'not-allowed' : 'pointer',
+                    opacity: deleting ? 0.6 : 1,
+                  }}
+                >
+                  {deleting ? '…' : 'Confirm'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  disabled={deleting}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #334155',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#64748b',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={handleApproveWithImage}
-                disabled={approving || approvingWithImage}
+                onClick={() => setDeleteConfirm(true)}
+                disabled={deleting || backingToDraft}
                 style={{
-                  background: '#7c3aed',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '8px 20px',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: (approving || approvingWithImage) ? 'not-allowed' : 'pointer',
-                  opacity: (approving || approvingWithImage) ? 0.7 : 1,
+                  background: 'none',
+                  border: '1px solid #7f1d1d',
+                  borderRadius: 6,
+                  padding: '5px 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#f87171',
+                  cursor: (deleting || backingToDraft) ? 'not-allowed' : 'pointer',
+                  opacity: (deleting || backingToDraft) ? 0.6 : 1,
                 }}
               >
-                {approvingWithImage ? 'Queuing…' : '🎨 Approve + Image'}
+                🗑 Delete
               </button>
-            </>
-          )}
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: '1px solid #1e293b',
-              borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: 14,
-              color: '#94a3b8',
-              cursor: 'pointer',
-            }}
-          >
-            Close
-          </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1020,6 +1130,29 @@ export default function Radar() {
     }
   }
 
+  const handleBackToDraft = async (id: string) => {
+    if (!supabase) return
+    const { error: err } = await supabase
+      .from('radar_posts')
+      .update({ status: 'drafted', updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (!err) {
+      setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status: 'drafted' as PostStatus } : p))
+      setSelected((prev) => prev?.id === id ? { ...prev, status: 'drafted' as PostStatus } : prev)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!supabase) return
+    const { error: err } = await supabase
+      .from('radar_posts')
+      .delete()
+      .eq('id', id)
+    if (!err) {
+      setPosts((prev) => prev.filter((p) => p.id !== id))
+    }
+  }
+
   const handleBulkApprove = async () => {
     if (!supabase) return
     setBulkApproving(true)
@@ -1248,6 +1381,11 @@ export default function Radar() {
           onApproveWithImage={async (id) => {
             await handleApproveWithImage(id)
             setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved' } : prev)
+          }}
+          onBackToDraft={handleBackToDraft}
+          onDelete={async (id) => {
+            await handleDelete(id)
+            setSelected(null)
           }}
           onFieldSaved={(id, field, value) => {
             setPosts((prev) => prev.map((p) =>
