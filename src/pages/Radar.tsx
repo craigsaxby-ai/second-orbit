@@ -157,13 +157,30 @@ function PostModal({
   post,
   onClose,
   onApprove,
+  onApproveWithImage,
+  onFieldSaved,
 }: {
   post: RadarPost
   onClose: () => void
   onApprove: (id: string) => Promise<void>
+  onApproveWithImage: (id: string) => Promise<void>
+  onFieldSaved?: (id: string, field: 'hook' | 'content', value: string) => void
 }) {
   const [approving, setApproving] = useState(false)
+  const [approvingWithImage, setApprovingWithImage] = useState(false)
   const [approved, setApproved] = useState(post.status === 'approved')
+
+  // Editable hook
+  const [editingHook, setEditingHook] = useState(false)
+  const [hookDraft, setHookDraft] = useState(post.hook ?? '')
+  const [savedHook, setSavedHook] = useState(post.hook ?? '')
+  const [savingHook, setSavingHook] = useState(false)
+
+  // Editable content
+  const [editingContent, setEditingContent] = useState(false)
+  const [contentDraft, setContentDraft] = useState(post.draft_text ?? '')
+  const [savedContent, setSavedContent] = useState(post.draft_text ?? '')
+  const [savingContent, setSavingContent] = useState(false)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -179,6 +196,62 @@ function PostModal({
     } finally {
       setApproving(false)
     }
+  }
+
+  const handleApproveWithImage = async () => {
+    setApprovingWithImage(true)
+    try {
+      await onApproveWithImage(post.id)
+      setApproved(true)
+    } finally {
+      setApprovingWithImage(false)
+    }
+  }
+
+  const handleSaveHook = async () => {
+    if (!supabase) return
+    setSavingHook(true)
+    try {
+      const { error: err } = await supabase
+        .from('radar_posts')
+        .update({ hook: hookDraft, updated_at: new Date().toISOString() })
+        .eq('id', post.id)
+      if (!err) {
+        setSavedHook(hookDraft)
+        setEditingHook(false)
+        onFieldSaved?.(post.id, 'hook', hookDraft)
+      }
+    } finally {
+      setSavingHook(false)
+    }
+  }
+
+  const handleCancelHook = () => {
+    setHookDraft(savedHook)
+    setEditingHook(false)
+  }
+
+  const handleSaveContent = async () => {
+    if (!supabase) return
+    setSavingContent(true)
+    try {
+      const { error: err } = await supabase
+        .from('radar_posts')
+        .update({ draft_text: contentDraft, updated_at: new Date().toISOString() })
+        .eq('id', post.id)
+      if (!err) {
+        setSavedContent(contentDraft)
+        setEditingContent(false)
+        onFieldSaved?.(post.id, 'content', contentDraft)
+      }
+    } finally {
+      setSavingContent(false)
+    }
+  }
+
+  const handleCancelContent = () => {
+    setContentDraft(savedContent)
+    setEditingContent(false)
   }
 
   return (
@@ -262,34 +335,132 @@ function PostModal({
 
           <div style={{ padding: 24 }}>
           {/* Hook */}
-          {post.hook && (
+          {(post.hook || editingHook) && (
             <div style={{ marginBottom: 20 }}>
-              <p style={{ color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px' }}>Hook</p>
-              <p style={{ color: '#e2e8f0', fontSize: 14, fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
-                "{post.hook}"
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <p style={{ color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Hook</p>
+                {!editingHook ? (
+                  <button
+                    onClick={() => setEditingHook(true)}
+                    style={{
+                      background: 'none', border: '1px solid #334155', borderRadius: 4,
+                      color: '#64748b', fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                      padding: '1px 6px', lineHeight: 1.6,
+                    }}
+                  >✏️ Edit</button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      onClick={handleSaveHook}
+                      disabled={savingHook}
+                      style={{
+                        background: 'none', border: '1px solid #22c55e', borderRadius: 4,
+                        color: '#4ade80', fontSize: 10, fontWeight: 600, cursor: savingHook ? 'not-allowed' : 'pointer',
+                        padding: '1px 6px', lineHeight: 1.6, opacity: savingHook ? 0.6 : 1,
+                      }}
+                    >{savingHook ? '…' : '✓ Save'}</button>
+                    <button
+                      onClick={handleCancelHook}
+                      disabled={savingHook}
+                      style={{
+                        background: 'none', border: '1px solid #334155', borderRadius: 4,
+                        color: '#64748b', fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                        padding: '1px 6px', lineHeight: 1.6,
+                      }}
+                    >✕</button>
+                  </div>
+                )}
+              </div>
+              {editingHook ? (
+                <textarea
+                  value={hookDraft}
+                  onChange={(e) => setHookDraft(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: '#020617', border: '1px solid #3b82f6',
+                    borderRadius: 8, padding: 12,
+                    color: '#e2e8f0', fontSize: 14, fontStyle: 'italic',
+                    lineHeight: 1.6, fontFamily: 'system-ui, sans-serif',
+                    resize: 'vertical', outline: 'none',
+                  }}
+                />
+              ) : (
+                <p style={{ color: '#e2e8f0', fontSize: 14, fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
+                  "{savedHook}"
+                </p>
+              )}
             </div>
           )}
 
           {/* Draft text */}
-          {post.draft_text && (
+          {(post.draft_text || editingContent) && (
             <div style={{ marginBottom: 20 }}>
-              <p style={{ color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Draft</p>
-              <div
-                style={{
-                  background: '#020617',
-                  border: '1px solid #1e293b',
-                  borderRadius: 8,
-                  padding: 16,
-                  color: '#cbd5e1',
-                  fontSize: 13,
-                  lineHeight: 1.7,
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'system-ui, sans-serif',
-                }}
-              >
-                {post.draft_text}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <p style={{ color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Draft</p>
+                {!editingContent ? (
+                  <button
+                    onClick={() => setEditingContent(true)}
+                    style={{
+                      background: 'none', border: '1px solid #334155', borderRadius: 4,
+                      color: '#64748b', fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                      padding: '1px 6px', lineHeight: 1.6,
+                    }}
+                  >✏️ Edit</button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      onClick={handleSaveContent}
+                      disabled={savingContent}
+                      style={{
+                        background: 'none', border: '1px solid #22c55e', borderRadius: 4,
+                        color: '#4ade80', fontSize: 10, fontWeight: 600, cursor: savingContent ? 'not-allowed' : 'pointer',
+                        padding: '1px 6px', lineHeight: 1.6, opacity: savingContent ? 0.6 : 1,
+                      }}
+                    >{savingContent ? '…' : '✓ Save'}</button>
+                    <button
+                      onClick={handleCancelContent}
+                      disabled={savingContent}
+                      style={{
+                        background: 'none', border: '1px solid #334155', borderRadius: 4,
+                        color: '#64748b', fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                        padding: '1px 6px', lineHeight: 1.6,
+                      }}
+                    >✕</button>
+                  </div>
+                )}
               </div>
+              {editingContent ? (
+                <textarea
+                  value={contentDraft}
+                  onChange={(e) => setContentDraft(e.target.value)}
+                  rows={12}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: '#020617', border: '1px solid #3b82f6',
+                    borderRadius: 8, padding: 16,
+                    color: '#cbd5e1', fontSize: 13,
+                    lineHeight: 1.7, fontFamily: 'system-ui, sans-serif',
+                    resize: 'vertical', outline: 'none',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    background: '#020617',
+                    border: '1px solid #1e293b',
+                    borderRadius: 8,
+                    padding: 16,
+                    color: '#cbd5e1',
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'system-ui, sans-serif',
+                  }}
+                >
+                  {savedContent}
+                </div>
+              )}
             </div>
           )}
 
@@ -324,23 +495,42 @@ function PostModal({
           {approved ? (
             <span style={{ color: '#4ade80', fontSize: 14, fontWeight: 600 }}>✓ Approved</span>
           ) : (
-            <button
-              onClick={handleApprove}
-              disabled={approving}
-              style={{
-                background: '#22c55e',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '8px 20px',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: approving ? 'not-allowed' : 'pointer',
-                opacity: approving ? 0.7 : 1,
-              }}
-            >
-              {approving ? 'Approving…' : '✓ Approve'}
-            </button>
+            <>
+              <button
+                onClick={handleApprove}
+                disabled={approving || approvingWithImage}
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 20px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: (approving || approvingWithImage) ? 'not-allowed' : 'pointer',
+                  opacity: (approving || approvingWithImage) ? 0.7 : 1,
+                }}
+              >
+                {approving ? 'Approving…' : '✓ Approve'}
+              </button>
+              <button
+                onClick={handleApproveWithImage}
+                disabled={approving || approvingWithImage}
+                style={{
+                  background: '#7c3aed',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 20px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: (approving || approvingWithImage) ? 'not-allowed' : 'pointer',
+                  opacity: (approving || approvingWithImage) ? 0.7 : 1,
+                }}
+              >
+                {approvingWithImage ? 'Queuing…' : '🎨 Approve + Image'}
+              </button>
+            </>
           )}
           <button
             onClick={onClose}
@@ -816,6 +1006,20 @@ export default function Radar() {
     }
   }
 
+  const handleApproveWithImage = async (id: string) => {
+    if (!supabase) return
+    const { error: err } = await supabase
+      .from('radar_posts')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ status: 'approved', generate_image_requested: true, updated_at: new Date().toISOString() } as any)
+      .eq('id', id)
+    if (!err) {
+      const post = posts.find((p) => p.id === id)
+      if (post) await fireWebhook({ ...post, status: 'approved' })
+      setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status: 'approved' as PostStatus } : p))
+    }
+  }
+
   const handleBulkApprove = async () => {
     if (!supabase) return
     setBulkApproving(true)
@@ -1040,6 +1244,22 @@ export default function Radar() {
           onApprove={async (id) => {
             await handleApprove(id)
             setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved' } : prev)
+          }}
+          onApproveWithImage={async (id) => {
+            await handleApproveWithImage(id)
+            setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved' } : prev)
+          }}
+          onFieldSaved={(id, field, value) => {
+            setPosts((prev) => prev.map((p) =>
+              p.id === id
+                ? { ...p, ...(field === 'hook' ? { hook: value } : { draft_text: value }) }
+                : p
+            ))
+            setSelected((prev) =>
+              prev?.id === id
+                ? { ...prev, ...(field === 'hook' ? { hook: value } : { draft_text: value }) }
+                : prev
+            )
           }}
         />
       )}
