@@ -781,6 +781,28 @@ export default function Radar() {
 
   useEffect(() => { loadPosts() }, [])
 
+  const fireWebhook = async (post: RadarPost) => {
+    const webhookUrl = import.meta.env.VITE_MAKE_RADAR_WEBHOOK_URL
+    if (!webhookUrl) return
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: post.id,
+          channel: post.channel ?? '',
+          topic: post.topic ?? '',
+          hook: post.hook ?? '',
+          draft_text: post.draft_text ?? '',
+          scheduled_date: post.date ?? '',
+          risk_status: post.risk_status ?? '',
+        }),
+      })
+    } catch {
+      // Silently ignore webhook errors — don't break the UI
+    }
+  }
+
   const handleApprove = async (id: string) => {
     if (!supabase) return
     const { error: err } = await supabase
@@ -788,6 +810,8 @@ export default function Radar() {
       .update({ status: 'approved', updated_at: new Date().toISOString() })
       .eq('id', id)
     if (!err) {
+      const post = posts.find((p) => p.id === id)
+      if (post) await fireWebhook({ ...post, status: 'approved' })
       setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status: 'approved' as PostStatus } : p))
     }
   }
@@ -805,6 +829,9 @@ export default function Radar() {
       .update({ status: 'approved', updated_at: new Date().toISOString() })
       .in('id', ids)
     if (!err) {
+      await Promise.all(
+        toApprove.map((p) => fireWebhook({ ...p, status: 'approved' }))
+      )
       setPosts((prev) =>
         prev.map((p) => ids.includes(p.id) ? { ...p, status: 'approved' as PostStatus } : p)
       )
