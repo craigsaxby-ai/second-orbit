@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? ''
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? ''
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? ''
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY ?? ''
 
 const CHANNEL_STYLE: Record<string, string> = {
   CL: 'executive thought leadership — authoritative, professional, deep navy background, strong typography',
@@ -43,36 +43,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'postId, topic, and hook are required' })
   }
 
-  if (!OPENAI_API_KEY) {
-    return res.status(500).json({ error: 'OPENAI_API_KEY not configured' })
+  if (!GOOGLE_API_KEY) {
+    return res.status(500).json({ error: 'GOOGLE_API_KEY not configured' })
   }
 
-  // ── Step 1: Generate image via OpenAI ────────────────────────────────────
+  // ── Step 1: Generate image via Google Gemini ──────────────────────────────
   let imageBase64: string
   try {
     const prompt = buildPrompt(topic, hook, channel ?? 'CL')
-    const openaiRes = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'dall-e-2',
-        prompt,
-        n: 1,
-        size: '1024x1024',
-        response_format: 'b64_json',
-      }),
-    })
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${GOOGLE_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        }),
+      }
+    )
 
-    if (!openaiRes.ok) {
-      const err = await openaiRes.json().catch(() => ({}))
-      return res.status(502).json({ error: 'OpenAI error', detail: err })
+    if (!geminiRes.ok) {
+      const err = await geminiRes.json().catch(() => ({}))
+      return res.status(502).json({ error: 'Gemini error', detail: err })
     }
 
-    const openaiData = await openaiRes.json() as { data: { b64_json: string }[] }
-    imageBase64 = openaiData.data[0].b64_json
+    const geminiData = await geminiRes.json() as {
+      candidates: { content: { parts: { inlineData?: { data: string; mimeType: string } }[] } }[]
+    }
+    const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inlineData)
+    if (!imagePart?.inlineData) {
+      return res.status(502).json({ error: 'No image returned from Gemini' })
+    }
+    imageBase64 = imagePart.inlineData.data
   } catch (err) {
     return res.status(502).json({ error: 'Image generation failed', detail: String(err) })
   }
