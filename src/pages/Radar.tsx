@@ -153,6 +153,13 @@ function StatusBadge({ status }: { status: string }) {
 
 // ─── PostModal ────────────────────────────────────────────────────────────────
 
+// Image generation states
+type ImageGenState =
+  | { phase: 'idle' }
+  | { phase: 'generating' }
+  | { phase: 'review'; url: string }
+  | { phase: 'error'; message: string }
+
 function PostModal({
   post,
   onClose,
@@ -165,17 +172,17 @@ function PostModal({
   post: RadarPost
   onClose: () => void
   onApprove: (id: string) => Promise<void>
-  onApproveWithImage: (id: string) => Promise<void>
+  onApproveWithImage: (id: string, imageUrl: string) => Promise<void>
   onBackToDraft: (id: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onFieldSaved?: (id: string, field: 'hook' | 'content', value: string) => void
 }) {
   const [approving, setApproving] = useState(false)
-  const [approvingWithImage, setApprovingWithImage] = useState(false)
   const [approved, setApproved] = useState(post.status === 'approved')
   const [backingToDraft, setBackingToDraft] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [imageGen, setImageGen] = useState<ImageGenState>({ phase: 'idle' })
 
   // Editable hook
   const [editingHook, setEditingHook] = useState(false)
@@ -205,13 +212,49 @@ function PostModal({
     }
   }
 
-  const handleApproveWithImage = async () => {
-    setApprovingWithImage(true)
+  const handleGenerateImage = async () => {
+    setImageGen({ phase: 'generating' })
     try {
-      await onApproveWithImage(post.id)
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: post.id,
+          topic: post.topic ?? '',
+          hook: post.hook ?? '',
+          channel: post.channel ?? 'CL',
+        }),
+      })
+      const data = await res.json() as { imageUrl?: string; error?: string }
+      if (!res.ok || !data.imageUrl) {
+        setImageGen({ phase: 'error', message: data.error ?? 'Generation failed' })
+      } else {
+        setImageGen({ phase: 'review', url: data.imageUrl })
+      }
+    } catch (err) {
+      setImageGen({ phase: 'error', message: String(err) })
+    }
+  }
+
+  const handleApproveWithImage = async (imageUrl: string) => {
+    setApproving(true)
+    try {
+      await onApproveWithImage(post.id, imageUrl)
       setApproved(true)
+      setImageGen({ phase: 'idle' })
     } finally {
-      setApprovingWithImage(false)
+      setApproving(false)
+    }
+  }
+
+  const handleSkipImage = async () => {
+    setApproving(true)
+    try {
+      await onApprove(post.id)
+      setApproved(true)
+      setImageGen({ phase: 'idle' })
+    } finally {
+      setApproving(false)
     }
   }
 
@@ -339,8 +382,96 @@ function PostModal({
 
         {/* Body */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
-          {/* Image */}
-          {post.image_url ? (
+          {/* Image — generating / review / existing / placeholder */}
+          {imageGen.phase === 'generating' ? (
+            <div style={{
+              width: '100%', height: 220,
+              background: '#0a0f1e',
+              border: '1px solid #1e293b',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 12,
+            }}>
+              <div style={{
+                width: 28, height: 28,
+                border: '3px solid #1e293b',
+                borderTopColor: '#7c3aed',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite',
+              }} />
+              <span style={{ color: '#64748b', fontSize: 13 }}>Generating image…</span>
+            </div>
+          ) : imageGen.phase === 'review' ? (
+            <div style={{ width: '100%' }}>
+              <img
+                src={imageGen.url}
+                alt="Generated"
+                style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }}
+              />
+              <div style={{
+                background: '#0a0f1e',
+                borderTop: '1px solid #1e293b',
+                padding: '12px 16px',
+                display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              }}>
+                <span style={{ color: '#94a3b8', fontSize: 12, flex: 1, minWidth: 120 }}>Image ready — looks good?</span>
+                <button
+                  onClick={() => handleApproveWithImage(imageGen.url)}
+                  disabled={approving}
+                  style={{
+                    background: '#22c55e', color: '#fff', border: 'none',
+                    borderRadius: 7, padding: '6px 14px', fontSize: 13, fontWeight: 700,
+                    cursor: approving ? 'not-allowed' : 'pointer', opacity: approving ? 0.7 : 1,
+                  }}
+                >
+                  {approving ? '…' : '✓ Approve with this image'}
+                </button>
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={approving}
+                  style={{
+                    background: 'none', color: '#a78bfa',
+                    border: '1px solid #7c3aed',
+                    borderRadius: 7, padding: '6px 12px', fontSize: 13, fontWeight: 600,
+                    cursor: approving ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  🔄 Try again
+                </button>
+                <button
+                  onClick={handleSkipImage}
+                  disabled={approving}
+                  style={{
+                    background: 'none', color: '#64748b',
+                    border: '1px solid #334155',
+                    borderRadius: 7, padding: '6px 12px', fontSize: 12,
+                    cursor: approving ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  Skip image
+                </button>
+              </div>
+            </div>
+          ) : imageGen.phase === 'error' ? (
+            <div style={{
+              width: '100%', padding: '16px 20px',
+              background: 'rgba(239,68,68,0.06)',
+              borderBottom: '1px solid rgba(239,68,68,0.2)',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <span style={{ color: '#f87171', fontSize: 13 }}>⚠ {imageGen.message}</span>
+              <button
+                onClick={handleGenerateImage}
+                style={{
+                  background: 'none', color: '#f87171',
+                  border: '1px solid #f87171',
+                  borderRadius: 6, padding: '4px 10px', fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : post.image_url ? (
             <div style={{ width: '100%', height: 240, overflow: 'hidden' }}>
               <img
                 src={post.image_url}
@@ -359,7 +490,7 @@ function PostModal({
                 <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 32 }}>📡</span>
               </div>
             )
-          })()}
+          })()},
 
           <div style={{ padding: 24 }}>
           {/* Hook */}
@@ -524,11 +655,14 @@ function PostModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {approved ? (
               <span style={{ color: '#4ade80', fontSize: 14, fontWeight: 600 }}>✓ Approved</span>
+            ) : imageGen.phase === 'review' || imageGen.phase === 'generating' ? (
+              // While in image review flow, primary actions move to the image panel above
+              <span style={{ color: '#64748b', fontSize: 13 }}>Review the image above to continue</span>
             ) : (
               <>
                 <button
                   onClick={handleApprove}
-                  disabled={approving || approvingWithImage}
+                  disabled={approving}
                   style={{
                     background: '#22c55e',
                     color: '#fff',
@@ -537,15 +671,15 @@ function PostModal({
                     padding: '8px 20px',
                     fontSize: 14,
                     fontWeight: 700,
-                    cursor: (approving || approvingWithImage) ? 'not-allowed' : 'pointer',
-                    opacity: (approving || approvingWithImage) ? 0.7 : 1,
+                    cursor: approving ? 'not-allowed' : 'pointer',
+                    opacity: approving ? 0.7 : 1,
                   }}
                 >
                   {approving ? 'Approving…' : '✓ Approve'}
                 </button>
                 <button
-                  onClick={handleApproveWithImage}
-                  disabled={approving || approvingWithImage}
+                  onClick={handleGenerateImage}
+                  disabled={approving}
                   style={{
                     background: '#7c3aed',
                     color: '#fff',
@@ -554,11 +688,11 @@ function PostModal({
                     padding: '8px 20px',
                     fontSize: 14,
                     fontWeight: 700,
-                    cursor: (approving || approvingWithImage) ? 'not-allowed' : 'pointer',
-                    opacity: (approving || approvingWithImage) ? 0.7 : 1,
+                    cursor: approving ? 'not-allowed' : 'pointer',
+                    opacity: approving ? 0.7 : 1,
                   }}
                 >
-                  {approvingWithImage ? 'Queuing…' : '🎨 Approve + Image'}
+                  🎨 Approve + Generate Image
                 </button>
               </>
             )}
@@ -1116,17 +1250,16 @@ export default function Radar() {
     }
   }
 
-  const handleApproveWithImage = async (id: string) => {
+  const handleApproveWithImage = async (id: string, imageUrl: string) => {
     if (!supabase) return
     const { error: err } = await supabase
       .from('radar_posts')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ status: 'approved', generate_image_requested: true, updated_at: new Date().toISOString() } as any)
+      .update({ status: 'approved', image_url: imageUrl, updated_at: new Date().toISOString() })
       .eq('id', id)
     if (!err) {
       const post = posts.find((p) => p.id === id)
-      if (post) await fireWebhook({ ...post, status: 'approved' })
-      setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status: 'approved' as PostStatus } : p))
+      if (post) await fireWebhook({ ...post, status: 'approved', image_url: imageUrl })
+      setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status: 'approved' as PostStatus, image_url: imageUrl } : p))
     }
   }
 
@@ -1378,9 +1511,9 @@ export default function Radar() {
             await handleApprove(id)
             setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved' } : prev)
           }}
-          onApproveWithImage={async (id) => {
-            await handleApproveWithImage(id)
-            setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved' } : prev)
+          onApproveWithImage={async (id, imageUrl) => {
+            await handleApproveWithImage(id, imageUrl)
+            setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved', image_url: imageUrl } : prev)
           }}
           onBackToDraft={handleBackToDraft}
           onDelete={async (id) => {
