@@ -74,14 +74,14 @@ const ALL_STATUSES: PostStatus[] = ['drafted', 'approved', 'scheduled', 'posted'
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
 function truncate(text: string | null, len: number): string {
   if (!text) return ''
-  return text.length > len ? text.slice(0, len) + '…' : text
+  return text.length > len ? text.slice(0, len) + '...' : text
 }
 
 function riskDot(risk: string | null): string {
@@ -161,72 +161,136 @@ type ImageGenState =
   | { phase: 'error'; message: string }
 
 // ─── Canvas Image Generator ───────────────────────────────────────────────────
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(' ')
+  const lines: string[] = []
+  let cur = ''
+  for (const w of words) {
+    const test = cur ? `${cur} ${w}` : w
+    if (ctx.measureText(test).width > maxWidth && cur) { lines.push(cur); cur = w }
+    else cur = test
+  }
+  if (cur) lines.push(cur)
+  return lines
+}
+
 function generateCanvasImage(hook: string, channel: string): string {
   const W = 1200, H = 675
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H
   const ctx = canvas.getContext('2d')!
+  const clean = hook.replace(/^["\u2018\u2019\u201c\u201d]+|["\u2018\u2019\u201c\u201d]+$/g, '').trim()
 
-  // Background
-  ctx.fillStyle = '#0f172a'
-  ctx.fillRect(0, 0, W, H)
+  if (channel === 'SL' || channel === 'CP') {
+    // Searchline brand template: flat dark navy, hook left, logo mark bottom-right
+    ctx.fillStyle = '#020617'
+    ctx.fillRect(0, 0, W, H)
 
-  // Subtle gradient overlay
-  const grad = ctx.createRadialGradient(W * 0.15, H * 0.4, 0, W * 0.15, H * 0.4, W * 0.7)
-  grad.addColorStop(0, 'rgba(99,102,241,0.12)')
-  grad.addColorStop(1, 'rgba(15,23,42,0)')
-  ctx.fillStyle = grad
-  ctx.fillRect(0, 0, W, H)
+    // Hook text — bold white, left-aligned, upper-left zone
+    const fontSize = clean.length > 80 ? 52 : clean.length > 50 ? 60 : 68
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+    ctx.fillStyle = '#ffffff'
+    ctx.textBaseline = 'alphabetic'
+    const lines = wrapText(ctx, clean, W * 0.56)
+    const lh = fontSize * 1.25
+    const startY = H * 0.28
+    lines.forEach((line, i) => ctx.fillText(line, 72, startY + i * lh))
 
-  // Left accent bar
-  const accent = channel === 'SL' ? '#f97316' : channel === 'CP' ? '#10b981' : '#6366f1'
-  ctx.fillStyle = accent
-  ctx.fillRect(0, 0, 5, H)
+    // Searchline logo mark — bottom right
+    const cx = W - 165, cy = H - 148, R = 108
 
-  // Bottom brand strip
-  ctx.fillStyle = 'rgba(255,255,255,0.04)'
-  ctx.fillRect(0, H - 56, W, 56)
+    // Orange glow
+    const glow = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, R * 1.8)
+    glow.addColorStop(0, 'rgba(249,115,22,0.4)')
+    glow.addColorStop(0.5, 'rgba(249,115,22,0.15)')
+    glow.addColorStop(1, 'rgba(249,115,22,0)')
+    ctx.fillStyle = glow
+    ctx.fillRect(cx - R * 2, cy - R * 2, R * 4, R * 4)
 
-  // Brand label
-  ctx.fillStyle = '#475569'
-  ctx.font = '500 20px system-ui, -apple-system, sans-serif'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('SECOND ORBIT', 48, H - 28)
+    // Circle ring
+    ctx.beginPath()
+    ctx.arc(cx, cy, R, 0, Math.PI * 2)
+    ctx.strokeStyle = '#f97316'
+    ctx.lineWidth = 4
+    ctx.shadowColor = '#f97316'
+    ctx.shadowBlur = 12
+    ctx.stroke()
+    ctx.shadowBlur = 0
 
-  // Channel badge
-  ctx.fillStyle = accent
-  ctx.font = 'bold 16px system-ui, -apple-system, sans-serif'
-  ctx.fillText(channel, W - 80, H - 28)
+    // 5 waveform bars (waveform/equalizer, tallest centre)
+    const barHeights = [0.36, 0.60, 0.84, 0.60, 0.36]
+    const barW = 13, barGap = 11
+    const totalBarsW = barHeights.length * barW + (barHeights.length - 1) * barGap
+    const barsStartX = cx - totalBarsW / 2
+    const maxBarH = R * 1.05
+    ctx.shadowColor = '#f97316'
+    ctx.shadowBlur = 8
+    barHeights.forEach((rel, i) => {
+      const bh = maxBarH * rel
+      const bx = barsStartX + i * (barW + barGap)
+      const by = cy - bh / 2
+      ctx.beginPath()
+      ctx.roundRect(bx, by, barW, bh, 5)
+      ctx.fillStyle = '#f97316'
+      ctx.fill()
+    })
+    ctx.shadowBlur = 0
 
-  // Hook text with word wrap
-  const clean = hook.replace(/^["‘’“”]+|["‘’“”]+$/g, '')
-  const words = clean.split(' ')
-  const lines: string[] = []
-  const PAD = 56
-  const maxW = W - PAD * 2
+    // Searchline wordmark below logo
+    ctx.font = '600 21px system-ui, -apple-system, sans-serif'
+    ctx.fillStyle = '#ffffff'
+    ctx.textBaseline = 'alphabetic'
+    ctx.textAlign = 'center'
+    ctx.fillText('Searchline', cx, cy + R + 30)
+    ctx.textAlign = 'left'
 
-  // Pick font size based on length
-  const fontSize = clean.length > 100 ? 42 : clean.length > 60 ? 50 : 58
-  ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
-  ctx.fillStyle = '#f8fafc'
-  ctx.textBaseline = 'alphabetic'
+  } else {
+    // Craig LinkedIn — executive style
+    ctx.fillStyle = '#0a1628'
+    ctx.fillRect(0, 0, W, H)
 
-  let cur = ''
-  for (const w of words) {
-    const test = cur ? `${cur} ${w}` : w
-    if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w }
-    else cur = test
+    // Subtle diagonal tech lines
+    ctx.save()
+    ctx.strokeStyle = 'rgba(99,102,241,0.06)'
+    ctx.lineWidth = 1
+    for (let x = -H; x < W + H; x += 55) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + H, H); ctx.stroke()
+    }
+    ctx.restore()
+
+    // Right-side gradient
+    const grad = ctx.createLinearGradient(W * 0.55, 0, W, H)
+    grad.addColorStop(0, 'rgba(99,102,241,0)')
+    grad.addColorStop(1, 'rgba(99,102,241,0.1)')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, W, H)
+
+    // Indigo left accent bar
+    ctx.fillStyle = '#6366f1'
+    ctx.fillRect(0, 0, 5, H)
+
+    // Hook text — bold white, vertically centred left
+    const fontSize = clean.length > 80 ? 50 : clean.length > 50 ? 58 : 66
+    ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+    ctx.fillStyle = '#ffffff'
+    ctx.textBaseline = 'alphabetic'
+    const lines = wrapText(ctx, clean, W * 0.60)
+    const lh = fontSize * 1.28
+    const textBlock = lines.length * lh
+    const startY = (H - 60 - textBlock) / 2 + fontSize
+    lines.forEach((line, i) => ctx.fillText(line, 72, startY + i * lh))
+
+    // Bottom strip
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'
+    ctx.fillRect(0, H - 60, W, 60)
+
+    // Branding
+    ctx.font = '500 18px system-ui, -apple-system, sans-serif'
+    ctx.fillStyle = 'rgba(255,255,255,0.42)'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Craig Saxby  ·  Second Orbit', 72, H - 30)
   }
-  if (cur) lines.push(cur)
-
-  const lh = fontSize * 1.3
-  const textBlock = lines.length * lh
-  const startY = (H - 56 - textBlock) / 2 + fontSize
-
-  lines.forEach((line, i) => {
-    ctx.fillText(line, PAD, startY + i * lh)
-  })
 
   return canvas.toDataURL('image/png')
 }
@@ -453,7 +517,7 @@ function PostModal({
 
         {/* Body */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
-          {/* Image — generating / review / existing / placeholder */}
+          {/* Image - generating / review / existing / placeholder */}
           {imageGen.phase === 'generating' ? (
             <div style={{
               width: '100%', height: 220,
@@ -469,7 +533,7 @@ function PostModal({
                 borderRadius: '50%',
                 animation: 'spin 0.8s linear infinite',
               }} />
-              <span style={{ color: '#64748b', fontSize: 13 }}>Generating image…</span>
+              <span style={{ color: '#64748b', fontSize: 13 }}>Generating image...</span>
             </div>
           ) : imageGen.phase === 'review' ? (
             <div style={{ width: '100%' }}>
@@ -484,7 +548,7 @@ function PostModal({
                 padding: '12px 16px',
                 display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
               }}>
-                <span style={{ color: '#94a3b8', fontSize: 12, flex: 1, minWidth: 120 }}>Image ready — looks good?</span>
+                <span style={{ color: '#94a3b8', fontSize: 12, flex: 1, minWidth: 120 }}>Image ready - looks good?</span>
                 <button
                   onClick={() => handleApproveWithImage(imageGen.url)}
                   disabled={approving}
@@ -494,7 +558,7 @@ function PostModal({
                     cursor: approving ? 'not-allowed' : 'pointer', opacity: approving ? 0.7 : 1,
                   }}
                 >
-                  {approving ? '…' : '✓ Approve with this image'}
+                  {approving ? '...' : '✓ Approve with this image'}
                 </button>
                 <button
                   onClick={handleGenerateImage}
@@ -588,7 +652,7 @@ function PostModal({
                         color: '#4ade80', fontSize: 10, fontWeight: 600, cursor: savingHook ? 'not-allowed' : 'pointer',
                         padding: '1px 6px', lineHeight: 1.6, opacity: savingHook ? 0.6 : 1,
                       }}
-                    >{savingHook ? '…' : '✓ Save'}</button>
+                    >{savingHook ? '...' : '✓ Save'}</button>
                     <button
                       onClick={handleCancelHook}
                       disabled={savingHook}
@@ -647,7 +711,7 @@ function PostModal({
                         color: '#4ade80', fontSize: 10, fontWeight: 600, cursor: savingContent ? 'not-allowed' : 'pointer',
                         padding: '1px 6px', lineHeight: 1.6, opacity: savingContent ? 0.6 : 1,
                       }}
-                    >{savingContent ? '…' : '✓ Save'}</button>
+                    >{savingContent ? '...' : '✓ Save'}</button>
                     <button
                       onClick={handleCancelContent}
                       disabled={savingContent}
@@ -746,7 +810,7 @@ function PostModal({
                     opacity: approving ? 0.7 : 1,
                   }}
                 >
-                  {approving ? 'Approving…' : '✓ Approve'}
+                  {approving ? 'Approving...' : '✓ Approve'}
                 </button>
                 <button
                   onClick={handleGenerateImage}
@@ -801,7 +865,7 @@ function PostModal({
                   opacity: (backingToDraft || deleting) ? 0.6 : 1,
                 }}
               >
-                {backingToDraft ? '…' : '↩ Back to Draft'}
+                {backingToDraft ? '...' : '↩ Back to Draft'}
               </button>
             )}
             {deleteConfirm ? (
@@ -822,7 +886,7 @@ function PostModal({
                     opacity: deleting ? 0.6 : 1,
                   }}
                 >
-                  {deleting ? '…' : 'Confirm'}
+                  {deleting ? '...' : 'Confirm'}
                 </button>
                 <button
                   onClick={() => setDeleteConfirm(false)}
@@ -1022,7 +1086,7 @@ function StatsBar({ posts, onBulkApprove, bulkApproving }: {
             transition: 'all 0.15s',
           }}
         >
-          {bulkApproving ? 'Approving…' : `✓ Bulk Approve All (${approvable} posts)`}
+          {bulkApproving ? 'Approving...' : `✓ Bulk Approve All (${approvable} posts)`}
         </button>
       )}
     </div>
@@ -1094,7 +1158,7 @@ function ArticlesSection() {
         SEO & AEO content drafts for Searchline
       </p>
 
-      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading articles…</p>}
+      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading articles...</p>}
 
       {!loading && articles.length === 0 && (
         <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '32px 24px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
@@ -1168,7 +1232,7 @@ function ArticlesSection() {
                           opacity: publishing === article.id ? 0.7 : 1,
                         }}
                       >
-                        {publishing === article.id ? '…' : '🚀 Approve & Publish'}
+                        {publishing === article.id ? '...' : '🚀 Approve & Publish'}
                       </button>
                     )}
                   </div>
@@ -1246,10 +1310,10 @@ function MetricsSection() {
         📊 Metrics Tracker
       </h2>
       <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 20px' }}>
-        Weekly LinkedIn stats — Craig’s personal account
+        Weekly LinkedIn stats - Craig's personal account
       </p>
 
-      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading metrics…</p>}
+      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading metrics...</p>}
 
       {!loading && metrics.length === 0 && (
         <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '32px 24px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
@@ -1284,15 +1348,15 @@ function MetricsSection() {
                     <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.followers.toLocaleString()}</td>
                     <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a' }}>
                       {isBaseline ? (
-                        <span style={{ color: '#64748b' }}>— baseline</span>
+                        <span style={{ color: '#64748b' }}>- baseline</span>
                       ) : delta !== null ? (
                         <span style={{ color: delta >= 0 ? '#4ade80' : '#f87171', fontWeight: 600 }}>{delta >= 0 ? '+' : ''}{delta.toLocaleString()}</span>
-                      ) : '—'}
+                      ) : '-'}
                     </td>
-                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.post_impressions?.toLocaleString() ?? '—'}</td>
-                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.profile_viewers?.toLocaleString() ?? '—'}</td>
-                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.posts_published ?? '—'}</td>
-                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#64748b', fontSize: 12, maxWidth: 200 }}>{m.notes ?? '—'}</td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.post_impressions?.toLocaleString() ?? '-'}</td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.profile_viewers?.toLocaleString() ?? '-'}</td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#e2e8f0' }}>{m.posts_published ?? '-'}</td>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #0f172a', color: '#64748b', fontSize: 12, maxWidth: 200 }}>{m.notes ?? '-'}</td>
                   </tr>
                 )
               })}
@@ -1368,7 +1432,7 @@ function AssetsSection() {
         Searchline LinkedIn page copy and starter posts
       </p>
 
-      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading assets…</p>}
+      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading assets...</p>}
 
       {!loading && assets.length === 0 && (
         <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '32px 24px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
@@ -1488,7 +1552,7 @@ function PostsSection({
               📋 Mission Control
             </h1>
             <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
-              14-day content test · May 6–19
+              14-day content test · May 6-19
             </p>
           </div>
           <button
@@ -1520,7 +1584,7 @@ function PostsSection({
               animation: 'spin 0.8s linear infinite',
             }}
           />
-          <span style={{ fontSize: 14 }}>Loading posts…</span>
+          <span style={{ fontSize: 14 }}>Loading posts...</span>
         </div>
       )}
 
@@ -1674,7 +1738,7 @@ export default function Radar() {
     setError(null)
     setSetupNeeded(false)
     if (!supabase) {
-      setError('Supabase not configured — set VITE_SUPABASE_ANON_KEY in .env')
+      setError('Supabase not configured - set VITE_SUPABASE_ANON_KEY in .env')
       setLoading(false)
       return
     }
@@ -1714,7 +1778,7 @@ export default function Radar() {
         }),
       })
     } catch {
-      // Silently ignore webhook errors — don't break the UI
+      // Silently ignore webhook errors - don't break the UI
     }
   }
 
