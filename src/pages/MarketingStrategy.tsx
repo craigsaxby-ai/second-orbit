@@ -273,6 +273,133 @@ export default function MarketingStrategy() {
           </div>
         </Section>
 
+        {/* SEO & AEO Strategy */}
+        <Section title="8 · SEO & AEO Strategy">
+          <Card accent="#7c3aed">
+            <H3>Positioning Anchor</H3>
+            <P>Searchline is not a job board, not an ATS, not traditional executive search software. It is the <strong style={{ color: '#f8fafc' }}>technology layer that automates recruitment workflows using AI agents</strong>. Current niche: tech sales leader hiring. Expanding to: all AI-driven recruitment automation. We are the technology provider — not the recruiter.</P>
+            <P>This distinction matters for every keyword and content decision we make.</P>
+          </Card>
+
+          <Card accent="#a78bfa">
+            <H3>AEO First — Why This Is The Right Bet Right Now</H3>
+            <P>ChatGPT, Perplexity, and Claude are being asked questions like <em style={{ color: '#cbd5e1' }}>"what's the best AI tool for screening candidates"</em>, <em style={{ color: '#cbd5e1' }}>"how do I automate my hiring workflow"</em>, <em style={{ color: '#cbd5e1' }}>"what is an AI recruitment agent"</em>. The answers come from well-structured, authoritative content that answers those specific questions clearly.</P>
+            <P>Almost no purpose-built pages target this yet. With 5–6 good articles we can own those answers in AI answer engines inside 60–90 days. That would take years of traditional SEO work to achieve the same visibility in Google.</P>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginTop: 10 }}>
+              {[
+                { label: 'Speed to visibility', value: '60–90 days (AEO) vs 12–18 months (SEO)' },
+                { label: 'Competition level', value: 'Very low right now — window is open' },
+                { label: 'Traffic source', value: 'Growing fast — AI answer engines overtaking Google for research queries' },
+                { label: 'Content requirement', value: 'Well-structured Q&A format, clear definitions, real examples' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ background: '#0a0f1e', borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ color: '#a78bfa', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
+                  <div style={{ color: '#e2e8f0', fontSize: 13 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card accent="#22c55e">
+            <H3>Keyword Strategy — Target vs Avoid</H3>
+            <P>Don’t compete on generic HR/recruitment terms. DA90 players are spending six figures on them. Pick angles that are growing fast, have genuine intent, and have almost no purpose-built content yet.</P>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
+              <div>
+                <div style={{ color: '#22c55e', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>✓ Target These</div>
+                {[
+                  'AI recruitment agent',
+                  'automated hiring workflow',
+                  'AI candidate screening',
+                  'tech sales hiring automation',
+                  'how to automate recruitment with AI',
+                  'AI interview agent',
+                  'recruitment automation software',
+                  'automated candidate pre-screening',
+                ].map(kw => (
+                  <div key={kw} style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, padding: '5px 10px', marginBottom: 5, color: '#86efac', fontSize: 13 }}>{kw}</div>
+                ))}
+              </div>
+              <div>
+                <div style={{ color: '#ef4444', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>✗ Avoid These (Too Competitive)</div>
+                {[
+                  'recruitment software',
+                  'applicant tracking system',
+                  'executive search',
+                  'HR software',
+                  'recruitment platform',
+                  'talent acquisition',
+                  'hiring software',
+                  'ATS',
+                ].map(kw => (
+                  <div key={kw} style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 6, padding: '5px 10px', marginBottom: 5, color: '#fca5a5', fontSize: 13 }}>{kw}</div>
+                ))}
+              </div>
+            </div>
+            <P style={{ marginTop: 12 }}>When a keyword is too competitive, find a more specific angle with the same intent. e.g. “recruitment software” → “AI recruitment agent for tech sales hiring”.</P>
+          </Card>
+
+          <Card accent="#f97316">
+            <H3>Article Content Plan — AEO-Structured</H3>
+            <P>Each article targets one primary keyword and is structured to be cited by AI answer engines. Format: clear definition, how it works, who uses it, benefits, real example. No fluff.</P>
+            {[
+              { title: 'What is an AI recruitment agent — and how does it work?', keyword: 'AI recruitment agent', aeo: 'What is an AI recruitment agent?', status: 'In progress' },
+              { title: 'How to build an automated recruitment workflow with AI', keyword: 'automated recruitment workflow', aeo: 'How do I automate my hiring process?', status: 'In progress' },
+              { title: 'AI candidate screening: how it works and why it’s replacing manual CV review', keyword: 'AI candidate screening', aeo: 'How does AI candidate screening work?', status: 'In progress' },
+            ].map(({ title, keyword, aeo, status }) => (
+              <div key={title} style={{ background: '#0a0f1e', border: '1px solid #1e293b', borderRadius: 8, padding: '14px 16px', marginBottom: 10 }}>
+                <div style={{ color: '#f8fafc', fontWeight: 600, fontSize: 14, marginBottom: 8 }}>{title}</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Tag color="#f97316">{keyword}</Tag>
+                  <Tag color="#a78bfa">AEO: {aeo}</Tag>
+                  <Tag color="#22c55e">{status}</Tag>
+                </div>
+              </div>
+            ))}
+          </Card>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            <Card accent="#60a5fa">
+              <H3>Backlink Strategy</H3>
+              <P><strong style={{ color: '#93c5fd' }}>Now — organic only.</strong> Don’t chase backlinks early. Let good content do the work.</P>
+              <Bullets items={[
+                'Submit to AI tool directories (Futurepedia, There’s An AI For That)',
+                'G2 / Capterra listings (free tier)',
+                'Product Hunt launch when ready',
+                'Reddit + community mentions through genuine participation',
+                'HR tech blogs will cite good content naturally',
+              ]} />
+              <P><strong style={{ color: '#93c5fd' }}>When budget allows:</strong> Guest posts on SHRM, ERE, RecruitingBriefings (~£500–1,500 each, high DA). Partner content with ATSs.</P>
+            </Card>
+
+            <Card accent="#fbbf24">
+              <H3>Paid Search — Not Yet</H3>
+              <P>Don’t bid on keywords before you have conversion data. “AI hiring” keywords run £10–30 CPC. Without knowing what converts, that’s burning money.</P>
+              <P><strong style={{ color: '#fde68a' }}>The trigger:</strong> Run 90 days of organic content. Track which keywords drive signups or demo requests. Then bid narrowly on exactly those terms with a tight budget.</P>
+              <Bullets items={[
+                'Month 1–3: organic only',
+                'Month 4+: retarget visitors only (cheap, high intent)',
+                'Month 6+: narrow keyword bidding if conversion data supports it',
+              ]} />
+            </Card>
+          </div>
+
+          <Card accent="#94a3b8">
+            <H3>Decision Framework — How We Choose Keywords Over Time</H3>
+            <P>The strategy will evolve as we see what drives signups. But the framework is locked:</P>
+            {[
+              { q: 'High competition keyword?', a: 'Find a more specific angle with the same intent. Own the niche version first.' },
+              { q: 'High search volume but expensive?', a: 'Write AEO content for it, don’t bid. Wait for domain authority to build.' },
+              { q: 'Low volume but perfect intent?', a: 'Write it. One signup from a perfect-fit customer beats 1,000 bounces.' },
+              { q: 'Trending topic?', a: 'Fast-publish a short AEO page. Speed matters for AI answer engine indexing.' },
+            ].map(({ q, a }) => (
+              <div key={q} style={{ display: 'flex', gap: 12, marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #1e293b' }}>
+                <div style={{ color: '#f8fafc', fontSize: 13, fontWeight: 600, minWidth: 200, flexShrink: 0 }}>{q}</div>
+                <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.6 }}>{a}</div>
+              </div>
+            ))}
+          </Card>
+        </Section>
+
         {/* Risk Rules */}
         <Section title="9 · Risk Rules">
           <Card accent="#ef4444">
