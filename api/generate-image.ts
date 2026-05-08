@@ -2,29 +2,22 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? ''
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? ''
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY ?? ''
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? ''
 
 const CHANNEL_STYLE: Record<string, string> = {
-  CL: 'executive thought leadership — authoritative, professional, deep navy background, strong typography',
-  SL: 'modern B2B SaaS brand — clean, data-driven, dark with a subtle orange accent',
-  CP: 'community engagement — conversational, approachable, clean dark background',
+  CL: 'executive thought leadership — authoritative, professional, deep navy background (#0f172a), strong bold typography, minimal geometric accent',
+  SL: 'modern B2B SaaS — clean, data-driven, dark background with subtle orange accent (#f97316), professional',
+  CP: 'community engagement — conversational, approachable, clean dark background, warm tone',
 }
 
 function buildPrompt(topic: string, hook: string, channel: string): string {
   const style = CHANNEL_STYLE[channel] ?? CHANNEL_STYLE.CL
   return [
-    `Create a LinkedIn post image in a ${style} visual style.`,
-    `The image should feature this hook line as the main typographic element: "${hook}"`,
-    `Topic context: "${topic}"`,
-    `Design rules:`,
-    `- Dark navy or near-black background (#0f172a or similar)`,
-    `- Bold, clean sans-serif typography — the hook is the hero`,
-    `- Minimal graphic accent (subtle geometric shape, gradient, or thin line element only)`,
-    `- 16:9 aspect ratio, suitable for LinkedIn post attachment`,
-    `- No human faces, no logos, no stock imagery`,
-    `- Professional and polished — no clipart, no busy layouts`,
-    `- Text should be large and legible at small sizes`,
-  ].join('\n')
+    `LinkedIn post image. Style: ${style}.`,
+    `Feature this hook as the dominant text element: "${hook}"`,
+    `Topic: "${topic}"`,
+    `Rules: dark navy/near-black background, bold clean sans-serif typography, hook text is the hero element, minimal graphic accent only (thin line or subtle gradient), 16:9 landscape format, no human faces, no logos, no stock photos, professional and polished, text must be large and legible.`,
+  ].join(' ')
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -43,49 +36,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'postId, topic, and hook are required' })
   }
 
-  if (!GOOGLE_API_KEY) {
-    return res.status(500).json({ error: 'GOOGLE_API_KEY not configured' })
+  if (!OPENAI_API_KEY) {
+    return res.status(500).json({ error: 'OPENAI_API_KEY not configured' })
   }
 
-  // ── Step 1: Generate image via Google Gemini ──────────────────────────────
-  let imageBase64: string
+  // ── Step 1: Generate image via OpenAI DALL-E 3 ───────────────────────────
+  let imageUrl: string
   try {
     const prompt = buildPrompt(topic, hook, channel ?? 'CL')
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${GOOGLE_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-        }),
-      }
-    )
+    const openaiRes = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'dall-e-3',
+        prompt,
+        n: 1,
+        size: '1792x1024',
+        response_format: 'url',
+      }),
+    })
 
-    if (!geminiRes.ok) {
-      const err = await geminiRes.json().catch(() => ({}))
-      return res.status(502).json({ error: 'Gemini error', detail: err })
+    if (!openaiRes.ok) {
+      const err = await openaiRes.json().catch(() => ({}))
+      return res.status(502).json({ error: 'Image generation failed', detail: err })
     }
 
-    const geminiData = await geminiRes.json() as {
-      candidates: { content: { parts: { inlineData?: { data: string; mimeType: string } }[] } }[]
+    const openaiData = await openaiRes.json() as { data: { url: string }[] }
+    const generatedUrl = openaiData.data?.[0]?.url
+    if (!generatedUrl) {
+      return res.status(502).json({ error: 'No image URL returned from OpenAI' })
     }
-    const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inlineData)
-    if (!imagePart?.inlineData) {
-      return res.status(502).json({ error: 'No image returned from Gemini' })
-    }
-    imageBase64 = imagePart.inlineData.data
+    imageUrl = generatedUrl
   } catch (err) {
     return res.status(502).json({ error: 'Image generation failed', detail: String(err) })
   }
 
-  // ── Step 2: Upload to Supabase storage ───────────────────────────────────
+  // ── Step 2: Fetch image and upload to Supabase storage ───────────────────
   const filename = `radar-${postId.slice(0, 8)}.png`
-  const imageBuffer = Buffer.from(imageBase64, 'base64')
 
-  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/radar-images/${filename}`
   try {
+    const imgRes = await fetch(imageUrl)
+    if (!imgRes.ok) {
+      return res.status(502).json({ error: 'Failed to fetch generated image' })
+    }
+    const imageBuffer = Buffer.from(await imgRes.arrayBuffer())
+
+    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/radar-images/${filename}`
     const uploadRes = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
@@ -105,7 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(502).json({ error: 'Upload failed', detail: String(err) })
   }
 
-  const imageUrl = `${SUPABASE_URL}/storage/v1/object/public/radar-images/${filename}`
+  const storedUrl = `${SUPABASE_URL}/storage/v1/object/public/radar-images/${filename}`
 
   // ── Step 3: Update radar_posts record ────────────────────────────────────
   try {
@@ -120,19 +119,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           Prefer: 'return=minimal',
         },
         body: JSON.stringify({
-          image_url: imageUrl,
+          image_url: storedUrl,
           generate_image_requested: false,
           updated_at: new Date().toISOString(),
         }),
       }
     )
     if (!patchRes.ok) {
-      // Image is generated and uploaded — just warn, don't fail
       console.warn('DB update failed for', postId)
     }
   } catch {
     console.warn('DB update threw for', postId)
   }
 
-  return res.status(200).json({ imageUrl })
+  return res.status(200).json({ imageUrl: storedUrl })
 }
