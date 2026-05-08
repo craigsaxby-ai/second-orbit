@@ -160,6 +160,77 @@ type ImageGenState =
   | { phase: 'review'; url: string }
   | { phase: 'error'; message: string }
 
+// ─── Canvas Image Generator ───────────────────────────────────────────────────
+function generateCanvasImage(hook: string, channel: string): string {
+  const W = 1200, H = 675
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')!
+
+  // Background
+  ctx.fillStyle = '#0f172a'
+  ctx.fillRect(0, 0, W, H)
+
+  // Subtle gradient overlay
+  const grad = ctx.createRadialGradient(W * 0.15, H * 0.4, 0, W * 0.15, H * 0.4, W * 0.7)
+  grad.addColorStop(0, 'rgba(99,102,241,0.12)')
+  grad.addColorStop(1, 'rgba(15,23,42,0)')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, W, H)
+
+  // Left accent bar
+  const accent = channel === 'SL' ? '#f97316' : channel === 'CP' ? '#10b981' : '#6366f1'
+  ctx.fillStyle = accent
+  ctx.fillRect(0, 0, 5, H)
+
+  // Bottom brand strip
+  ctx.fillStyle = 'rgba(255,255,255,0.04)'
+  ctx.fillRect(0, H - 56, W, 56)
+
+  // Brand label
+  ctx.fillStyle = '#475569'
+  ctx.font = '500 20px system-ui, -apple-system, sans-serif'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('SECOND ORBIT', 48, H - 28)
+
+  // Channel badge
+  ctx.fillStyle = accent
+  ctx.font = 'bold 16px system-ui, -apple-system, sans-serif'
+  ctx.fillText(channel, W - 80, H - 28)
+
+  // Hook text with word wrap
+  const clean = hook.replace(/^["‘’“”]+|["‘’“”]+$/g, '')
+  const words = clean.split(' ')
+  const lines: string[] = []
+  const PAD = 56
+  const maxW = W - PAD * 2
+
+  // Pick font size based on length
+  const fontSize = clean.length > 100 ? 42 : clean.length > 60 ? 50 : 58
+  ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+  ctx.fillStyle = '#f8fafc'
+  ctx.textBaseline = 'alphabetic'
+
+  let cur = ''
+  for (const w of words) {
+    const test = cur ? `${cur} ${w}` : w
+    if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w }
+    else cur = test
+  }
+  if (cur) lines.push(cur)
+
+  const lh = fontSize * 1.3
+  const textBlock = lines.length * lh
+  const startY = (H - 56 - textBlock) / 2 + fontSize
+
+  lines.forEach((line, i) => {
+    ctx.fillText(line, PAD, startY + i * lh)
+  })
+
+  return canvas.toDataURL('image/png')
+}
+
 function PostModal({
   post,
   onClose,
@@ -215,22 +286,22 @@ function PostModal({
   const handleGenerateImage = async () => {
     setImageGen({ phase: 'generating' })
     try {
-      const res = await fetch('/api/generate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          postId: post.id,
-          topic: post.topic ?? '',
-          hook: post.hook ?? '',
-          channel: post.channel ?? 'CL',
-        }),
-      })
-      const data = await res.json() as { imageUrl?: string; error?: string }
-      if (!res.ok || !data.imageUrl) {
-        setImageGen({ phase: 'error', message: data.error ?? 'Generation failed' })
-      } else {
-        setImageGen({ phase: 'review', url: data.imageUrl })
+      const dataUrl = generateCanvasImage(post.hook ?? post.topic ?? '', post.channel ?? 'CL')
+      // Upload to Supabase storage
+      const filename = `radar-${post.id.slice(0, 8)}.png`
+      const blob = await (await fetch(dataUrl)).blob()
+      if (supabase) {
+        const { error: upErr } = await supabase.storage
+          .from('radar-images')
+          .upload(filename, blob, { contentType: 'image/png', upsert: true })
+        if (!upErr) {
+          const { data: pubData } = supabase.storage.from('radar-images').getPublicUrl(filename)
+          setImageGen({ phase: 'review', url: pubData.publicUrl })
+          return
+        }
       }
+      // Fallback: use data URL directly
+      setImageGen({ phase: 'review', url: dataUrl })
     } catch (err) {
       setImageGen({ phase: 'error', message: String(err) })
     }
