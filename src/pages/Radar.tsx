@@ -1364,6 +1364,228 @@ function isTableMissingError(msg: string): boolean {
   return msg.toLowerCase().includes('does not exist') || msg.toLowerCase().includes('relation') || TABLE_NOT_FOUND_CODES.some((c) => msg.includes(c))
 }
 
+// ─── Nav Items ────────────────────────────────────────────────────────────────
+
+const NAV_ITEMS = [
+  { id: 'posts',    icon: '📋', label: 'Mission Control' },
+  { id: 'articles', icon: '📰', label: 'Articles' },
+  { id: 'metrics',  icon: '📊', label: 'Metrics' },
+  { id: 'assets',   icon: '🗂️', label: 'Assets' },
+  { id: 'rhythm',   icon: '📅', label: 'Weekly Rhythm' },
+]
+
+// ─── PostsSection ─────────────────────────────────────────────────────────────
+
+function PostsSection({
+  posts,
+  loading,
+  error,
+  setupNeeded,
+  loadPosts,
+  filterStatus,
+  setFilterStatus,
+  filterChannel,
+  setFilterChannel,
+  filtered,
+  channels,
+  bulkApproving,
+  handleBulkApprove,
+  setSelected,
+}: {
+  posts: RadarPost[]
+  loading: boolean
+  error: string | null
+  setupNeeded: boolean
+  loadPosts: () => void
+  filterStatus: PostStatus | 'all'
+  setFilterStatus: (s: PostStatus | 'all') => void
+  filterChannel: string
+  setFilterChannel: (c: string) => void
+  filtered: RadarPost[]
+  channels: (string | null)[]
+  bulkApproving: boolean
+  handleBulkApprove: () => void
+  setSelected: (post: RadarPost) => void
+}) {
+  return (
+    <div style={{ padding: '32px 32px 48px' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h1 style={{ color: '#f8fafc', fontSize: 24, fontWeight: 700, margin: '0 0 4px' }}>
+              📋 Mission Control
+            </h1>
+            <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
+              14-day content test · May 6–19
+            </p>
+          </div>
+          <button
+            onClick={loadPosts}
+            style={{
+              background: 'none',
+              border: '1px solid #1e293b',
+              borderRadius: 8,
+              padding: '6px 14px',
+              color: '#64748b',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            ↻ Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, gap: 12, color: '#64748b' }}>
+          <div
+            style={{
+              width: 20, height: 20,
+              border: '2px solid #1e293b',
+              borderTopColor: '#3b82f6',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+            }}
+          />
+          <span style={{ fontSize: 14 }}>Loading posts…</span>
+        </div>
+      )}
+
+      {/* Error */}
+      {!loading && error && (
+        <div style={{ textAlign: 'center', padding: '64px 24px' }}>
+          <p style={{ color: '#f87171', fontSize: 14, marginBottom: 16 }}>{error}</p>
+          <button
+            onClick={loadPosts}
+            style={{ border: '1px solid #374151', borderRadius: 8, background: 'none', color: '#94a3b8', padding: '8px 16px', cursor: 'pointer', fontSize: 13 }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Setup Needed */}
+      {!loading && setupNeeded && (
+        <div style={{
+          background: '#0f172a', border: '1px solid #f59e0b44',
+          borderRadius: 16, padding: '40px 32px', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+          <h2 style={{ color: '#fbbf24', fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Setup needed</h2>
+          <p style={{ color: '#94a3b8', fontSize: 14, margin: '0 0 24px', lineHeight: 1.6 }}>
+            The <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4, color: '#f8fafc' }}>radar_posts</code> table doesn't exist yet.<br />
+            Run the Supabase migration to activate the content calendar.
+          </p>
+          <div style={{
+            background: '#020617', border: '1px solid #1e293b', borderRadius: 8,
+            padding: '16px 20px', textAlign: 'left', display: 'inline-block', maxWidth: 480, width: '100%',
+          }}>
+            <p style={{ color: '#64748b', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Steps</p>
+            <ol style={{ color: '#cbd5e1', fontSize: 13, lineHeight: 1.9, margin: 0, paddingLeft: 20 }}>
+              <li>Open <strong>Supabase Studio</strong> for your project</li>
+              <li>Go to <strong>SQL Editor</strong></li>
+              <li>Run the <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>radar_posts</code> migration from <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>supabase/migrations/</code></li>
+              <li>Click <strong>Refresh</strong> above</li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {/* Content */}
+      {!loading && !error && !setupNeeded && (
+        <>
+          {/* Stats bar */}
+          <StatsBar posts={posts} onBulkApprove={handleBulkApprove} bulkApproving={bulkApproving} />
+
+          {/* Channel tab filter */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            {['all', ...channels].map((ch) => {
+              const active = filterChannel === ch
+              const chStyle = ch !== 'all' ? CHANNEL_STYLES[ch as string] : null
+              return (
+                <button
+                  key={ch as string}
+                  onClick={() => setFilterChannel(ch as string)}
+                  style={{
+                    background: active
+                      ? (chStyle ? chStyle.bg : '#3b82f6')
+                      : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${active ? (chStyle ? chStyle.border : '#2563eb') : '#1e293b'}`,
+                    borderRadius: 8,
+                    padding: '6px 14px',
+                    color: active ? '#fff' : '#94a3b8',
+                    fontSize: 13,
+                    fontWeight: active ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {ch === 'all' ? 'All' : ch as string}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Status filter */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+            {(['all', ...ALL_STATUSES] as const).map((s) => {
+              const active = filterStatus === s
+              const sc = s !== 'all' ? STATUS_COLORS[s] : null
+              return (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(s as PostStatus | 'all')}
+                  style={{
+                    background: active ? (sc ? sc.bg : 'rgba(255,255,255,0.08)') : 'transparent',
+                    border: `1px solid ${active ? (sc ? sc.text + '44' : '#475569') : '#1e293b'}`,
+                    borderRadius: 8,
+                    padding: '5px 12px',
+                    color: active ? (sc ? sc.text : '#f8fafc') : '#64748b',
+                    fontSize: 12,
+                    fontWeight: active ? 700 : 500,
+                    cursor: 'pointer',
+                    textTransform: 'capitalize',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {s === 'all' ? 'All statuses' : s}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Card grid */}
+          {filtered.length === 0 ? (
+            <p style={{ color: '#64748b', textAlign: 'center', padding: '48px 24px', fontSize: 14 }}>
+              No posts match the current filter.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: 16,
+              }}
+            >
+              {filtered.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onClick={() => setSelected(post)}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── Radar page ───────────────────────────────────────────────────────────────
+
 export default function Radar() {
   const [posts, setPosts] = useState<RadarPost[]>([])
   const [loading, setLoading] = useState(true)
@@ -1373,6 +1595,8 @@ export default function Radar() {
   const [filterStatus, setFilterStatus] = useState<PostStatus | 'all'>('all')
   const [filterChannel, setFilterChannel] = useState<string>('all')
   const [bulkApproving, setBulkApproving] = useState(false)
+  const [activeSection, setActiveSection] = useState<string>('posts')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const loadPosts = async () => {
     setLoading(true)
@@ -1503,188 +1727,182 @@ export default function Radar() {
 
   const channels = Array.from(new Set(posts.map((p) => p.channel).filter(Boolean)))
 
-  return (
-    <div style={{ minHeight: '100vh', background: '#020617', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px' }}>
+  const SIDEBAR_WIDTH = sidebarCollapsed ? 56 : 220
 
-        {/* Header */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <h1 style={{ color: '#f8fafc', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>
-                📡 Radar
-              </h1>
-              <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>
-                14-day content test · May 6–19
-              </p>
-            </div>
-            <button
-              onClick={loadPosts}
-              style={{
-                background: 'none',
-                border: '1px solid #1e293b',
-                borderRadius: 8,
-                padding: '6px 14px',
-                color: '#64748b',
-                fontSize: 13,
-                cursor: 'pointer',
-              }}
-            >
-              ↻ Refresh
-            </button>
-          </div>
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+
+      {/* ── Sidebar ── */}
+      <div
+        style={{
+          width: SIDEBAR_WIDTH,
+          minWidth: SIDEBAR_WIDTH,
+          background: '#020617',
+          borderRight: '1px solid #1e293b',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'width 200ms ease, min-width 200ms ease',
+          overflow: 'hidden',
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+        }}
+      >
+        {/* Logo area */}
+        <div
+          style={{
+            padding: sidebarCollapsed ? '20px 0' : '20px 16px',
+            borderBottom: '1px solid #1e293b',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+            flexShrink: 0,
+          }}
+        >
+          <img
+            src="/second-orbit-logo.svg"
+            alt="Second Orbit"
+            style={{ width: 28, height: 28, flexShrink: 0 }}
+            onError={(e) => {
+              // Fallback to emoji if SVG not found
+              (e.currentTarget as HTMLImageElement).style.display = 'none'
+            }}
+          />
+          {!sidebarCollapsed && (
+            <span style={{ color: '#f8fafc', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
+              Second Orbit
+            </span>
+          )}
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, gap: 12, color: '#64748b' }}>
-            <div
-              style={{
-                width: 20, height: 20,
-                border: '2px solid #1e293b',
-                borderTopColor: '#3b82f6',
-                borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite',
-              }}
-            />
-            <span style={{ fontSize: 14 }}>Loading posts…</span>
-          </div>
-        )}
-
-        {/* Error */}
-        {!loading && error && (
-          <div style={{ textAlign: 'center', padding: '64px 24px' }}>
-            <p style={{ color: '#f87171', fontSize: 14, marginBottom: 16 }}>{error}</p>
-            <button
-              onClick={loadPosts}
-              style={{ border: '1px solid #374151', borderRadius: 8, background: 'none', color: '#94a3b8', padding: '8px 16px', cursor: 'pointer', fontSize: 13 }}
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* Setup Needed */}
-        {!loading && setupNeeded && (
-          <div style={{
-            background: '#0f172a', border: '1px solid #f59e0b44',
-            borderRadius: 16, padding: '40px 32px', textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
-            <h2 style={{ color: '#fbbf24', fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Setup needed</h2>
-            <p style={{ color: '#94a3b8', fontSize: 14, margin: '0 0 24px', lineHeight: 1.6 }}>
-              The <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4, color: '#f8fafc' }}>radar_posts</code> table doesn't exist yet.<br />
-              Run the Supabase migration to activate the content calendar.
-            </p>
-            <div style={{
-              background: '#020617', border: '1px solid #1e293b', borderRadius: 8,
-              padding: '16px 20px', textAlign: 'left', display: 'inline-block', maxWidth: 480, width: '100%',
-            }}>
-              <p style={{ color: '#64748b', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Steps</p>
-              <ol style={{ color: '#cbd5e1', fontSize: 13, lineHeight: 1.9, margin: 0, paddingLeft: 20 }}>
-                <li>Open <strong>Supabase Studio</strong> for your project</li>
-                <li>Go to <strong>SQL Editor</strong></li>
-                <li>Run the <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>radar_posts</code> migration from <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>supabase/migrations/</code></li>
-                <li>Click <strong>Refresh</strong> above</li>
-              </ol>
-            </div>
-          </div>
-        )}
-
-        {/* Content */}
-        {!loading && !error && !setupNeeded && (
-          <>
-            {/* Stats bar */}
-            <StatsBar posts={posts} onBulkApprove={handleBulkApprove} bulkApproving={bulkApproving} />
-
-            {/* Channel tab filter */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              {['all', ...channels].map((ch) => {
-                const active = filterChannel === ch
-                const style = ch !== 'all' ? CHANNEL_STYLES[ch as string] : null
-                return (
-                  <button
-                    key={ch as string}
-                    onClick={() => setFilterChannel(ch as string)}
-                    style={{
-                      background: active
-                        ? (style ? style.bg : '#3b82f6')
-                        : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${active ? (style ? style.border : '#2563eb') : '#1e293b'}`,
-                      borderRadius: 8,
-                      padding: '6px 14px',
-                      color: active ? '#fff' : '#94a3b8',
-                      fontSize: 13,
-                      fontWeight: active ? 700 : 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {ch === 'all' ? 'All' : ch as string}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Status filter */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-              {(['all', ...ALL_STATUSES] as const).map((s) => {
-                const active = filterStatus === s
-                const sc = s !== 'all' ? STATUS_COLORS[s] : null
-                return (
-                  <button
-                    key={s}
-                    onClick={() => setFilterStatus(s as PostStatus | 'all')}
-                    style={{
-                      background: active ? (sc ? sc.bg : 'rgba(255,255,255,0.08)') : 'transparent',
-                      border: `1px solid ${active ? (sc ? sc.text + '44' : '#475569') : '#1e293b'}`,
-                      borderRadius: 8,
-                      padding: '5px 12px',
-                      color: active ? (sc ? sc.text : '#f8fafc') : '#64748b',
-                      fontSize: 12,
-                      fontWeight: active ? 700 : 500,
-                      cursor: 'pointer',
-                      textTransform: 'capitalize',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {s === 'all' ? 'All statuses' : s}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Card grid */}
-            {filtered.length === 0 ? (
-              <p style={{ color: '#64748b', textAlign: 'center', padding: '48px 24px', fontSize: 14 }}>
-                No posts match the current filter.
-              </p>
-            ) : (
-              <div
+        {/* Nav items */}
+        <nav style={{ flex: 1, padding: sidebarCollapsed ? '12px 0' : '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+          {NAV_ITEMS.map((item) => {
+            const isActive = activeSection === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveSection(item.id)}
+                title={sidebarCollapsed ? item.label : undefined}
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                  gap: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: sidebarCollapsed ? 0 : 10,
+                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                  padding: sidebarCollapsed ? '10px 0' : '9px 12px',
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: isActive ? 'rgba(249,115,22,0.12)' : 'transparent',
+                  borderLeft: isActive ? '2px solid #f97316' : '2px solid transparent',
+                  color: isActive ? '#fff' : '#64748b',
+                  fontSize: 13,
+                  fontWeight: isActive ? 600 : 400,
+                  width: '100%',
+                  textAlign: 'left',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                  }
                 }}
               >
-                {filtered.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onClick={() => setSelected(post)}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+                <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>{item.icon}</span>
+                {!sidebarCollapsed && (
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.label}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+
+        {/* Collapse toggle */}
+        <div style={{ padding: sidebarCollapsed ? '12px 0' : '12px 8px', borderTop: '1px solid #1e293b', flexShrink: 0, display: 'flex', justifyContent: sidebarCollapsed ? 'center' : 'flex-end' }}>
+          <button
+            onClick={() => setSidebarCollapsed((c) => !c)}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            style={{
+              background: 'none',
+              border: '1px solid #1e293b',
+              borderRadius: 6,
+              padding: '6px 8px',
+              color: '#64748b',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              {sidebarCollapsed ? (
+                // Chevron right
+                <polyline points="9 18 15 12 9 6" />
+              ) : (
+                // Chevron left
+                <polyline points="15 18 9 12 15 6" />
+              )}
+            </svg>
+          </button>
+        </div>
       </div>
 
-        {/* New sections */}
-        <ArticlesSection />
-        <MetricsSection />
-        <AssetsSection />
-        <WeeklyRhythmSection />
+      {/* ── Main content ── */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          background: '#0a0f1e',
+          minWidth: 0,
+        }}
+      >
+        {activeSection === 'posts' && (
+          <PostsSection
+            posts={posts}
+            loading={loading}
+            error={error}
+            setupNeeded={setupNeeded}
+            loadPosts={loadPosts}
+            filterStatus={filterStatus}
+            setFilterStatus={setFilterStatus}
+            filterChannel={filterChannel}
+            setFilterChannel={setFilterChannel}
+            filtered={filtered}
+            channels={channels}
+            bulkApproving={bulkApproving}
+            handleBulkApprove={handleBulkApprove}
+            setSelected={setSelected}
+          />
+        )}
+        {activeSection === 'articles' && (
+          <div style={{ padding: '32px 32px 48px' }}>
+            <ArticlesSection />
+          </div>
+        )}
+        {activeSection === 'metrics' && (
+          <div style={{ padding: '32px 32px 48px' }}>
+            <MetricsSection />
+          </div>
+        )}
+        {activeSection === 'assets' && (
+          <div style={{ padding: '32px 32px 48px' }}>
+            <AssetsSection />
+          </div>
+        )}
+        {activeSection === 'rhythm' && (
+          <div style={{ padding: '32px 32px 48px' }}>
+            <WeeklyRhythmSection />
+          </div>
+        )}
+      </div>
 
       {/* Spin animation */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
