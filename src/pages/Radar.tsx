@@ -174,16 +174,15 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines
 }
 
-// Curated: senior executive + technology edge, dramatic/dark, city/screen backgrounds
+// AI-generated: senior exec + technology edge, right-side composition, dark left for text
 const CL_BACKGROUNDS = [
-  'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=1200&h=675&fit=crop&q=90', // exec at desk, night city
-  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=675&fit=crop&q=90', // glass skyscrapers, power/tech
-  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=675&fit=crop&q=90', // modern office night, city view
-  'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=675&fit=crop&q=90', // exec at screen, dark office
-  'https://images.unsplash.com/photo-1508385082938-8aa1a0c5b0a4?w=1200&h=675&fit=crop&q=90', // exec at window, corporate
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=1200&h=675&fit=crop&q=90', // exec presenting, boardroom
-  'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&h=675&fit=crop&q=90', // modern tech office, night
-  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=675&fit=crop&q=90', // team collaboration, screens
+  '/cl-bg/bg-1.jpg',  // exec on phone, reviewing docs, night city (closest to spec)
+  '/cl-bg/bg-2.png',  // exec boardroom night
+  '/cl-bg/bg-3.jpg',  // exec at window
+  '/cl-bg/bg-4.png',  // exec at desk, laptop, thoughtful
+  '/cl-bg/bg-5.png',  // two execs, boardroom
+  '/cl-bg/bg-6.jpg',  // exec walking corridor
+  '/cl-bg/bg-7.png',  // exec on phone at window
 ]
 
 async function loadImage(src: string): Promise<HTMLImageElement | null> {
