@@ -174,7 +174,26 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines
 }
 
-function generateCanvasImage(hook: string, channel: string): string {
+const CL_BACKGROUNDS = [
+  'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=1200&h=675&fit=crop&q=85',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=675&fit=crop&q=85',
+  'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1200&h=675&fit=crop&q=85',
+  'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1200&h=675&fit=crop&q=85',
+  'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=1200&h=675&fit=crop&q=85',
+  'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1200&h=675&fit=crop&q=85',
+]
+
+async function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+
+async function generateCanvasImage(hook: string, channel: string, _comment?: string): Promise<string> {
   const W = 1200, H = 675
   const canvas = document.createElement('canvas')
   canvas.width = W
@@ -246,50 +265,38 @@ function generateCanvasImage(hook: string, channel: string): string {
     ctx.textAlign = 'left'
 
   } else {
-    // Craig LinkedIn — executive style
-    ctx.fillStyle = '#0a1628'
-    ctx.fillRect(0, 0, W, H)
+    // Craig LinkedIn — executive photo style (no name, no branding)
+    // Pick background based on hook hash for variety
+    const bgIndex = Math.abs(clean.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % CL_BACKGROUNDS.length
+    const bgImg = await loadImage(CL_BACKGROUNDS[bgIndex])
 
-    // Subtle diagonal tech lines
-    ctx.save()
-    ctx.strokeStyle = 'rgba(99,102,241,0.06)'
-    ctx.lineWidth = 1
-    for (let x = -H; x < W + H; x += 55) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + H, H); ctx.stroke()
+    if (bgImg) {
+      // Draw photo background
+      ctx.drawImage(bgImg, 0, 0, W, H)
+    } else {
+      // Fallback: dark gradient
+      ctx.fillStyle = '#0a1628'
+      ctx.fillRect(0, 0, W, H)
     }
-    ctx.restore()
 
-    // Right-side gradient
-    const grad = ctx.createLinearGradient(W * 0.55, 0, W, H)
-    grad.addColorStop(0, 'rgba(99,102,241,0)')
-    grad.addColorStop(1, 'rgba(99,102,241,0.1)')
-    ctx.fillStyle = grad
+    // Dark overlay across full image (heavier on left, lighter on right)
+    const overlay = ctx.createLinearGradient(0, 0, W, 0)
+    overlay.addColorStop(0, 'rgba(5,10,25,0.88)')
+    overlay.addColorStop(0.55, 'rgba(5,10,25,0.72)')
+    overlay.addColorStop(1, 'rgba(5,10,25,0.35)')
+    ctx.fillStyle = overlay
     ctx.fillRect(0, 0, W, H)
-
-    // Indigo left accent bar
-    ctx.fillStyle = '#6366f1'
-    ctx.fillRect(0, 0, 5, H)
 
     // Hook text — bold white, vertically centred left
-    const fontSize = clean.length > 80 ? 50 : clean.length > 50 ? 58 : 66
+    const fontSize = clean.length > 80 ? 48 : clean.length > 50 ? 56 : 64
     ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
     ctx.fillStyle = '#ffffff'
     ctx.textBaseline = 'alphabetic'
-    const lines = wrapText(ctx, clean, W * 0.60)
+    const lines = wrapText(ctx, clean, W * 0.55)
     const lh = fontSize * 1.28
     const textBlock = lines.length * lh
-    const startY = (H - 60 - textBlock) / 2 + fontSize
-    lines.forEach((line, i) => ctx.fillText(line, 72, startY + i * lh))
-
-    // Bottom strip
-    ctx.fillStyle = 'rgba(255,255,255,0.04)'
-    ctx.fillRect(0, H - 60, W, 60)
-
-    // Branding
-    ctx.font = '500 18px system-ui, -apple-system, sans-serif'
-    ctx.fillStyle = 'rgba(255,255,255,0.42)'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('Craig Saxby  ·  Second Orbit', 72, H - 30)
+    const startY = (H - textBlock) / 2 + fontSize
+    lines.forEach((line, i) => ctx.fillText(line, 64, startY + i * lh))
   }
 
   return canvas.toDataURL('image/png')
@@ -318,6 +325,8 @@ function PostModal({
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [imageGen, setImageGen] = useState<ImageGenState>({ phase: 'idle' })
+  const [retryComment, setRetryComment] = useState('')
+  const [showRetryInput, setShowRetryInput] = useState(false)
 
   // Editable hook
   const [editingHook, setEditingHook] = useState(false)
@@ -347,10 +356,11 @@ function PostModal({
     }
   }
 
-  const handleGenerateImage = async () => {
+  const handleGenerateImage = async (comment?: string) => {
+    setShowRetryInput(false)
     setImageGen({ phase: 'generating' })
     try {
-      const dataUrl = generateCanvasImage(post.hook ?? post.topic ?? '', post.channel ?? 'CL')
+      const dataUrl = await generateCanvasImage(post.hook ?? post.topic ?? '', post.channel ?? 'CL', comment)
       // Upload to Supabase storage
       const filename = `radar-${post.id.slice(0, 8)}.png`
       const blob = await (await fetch(dataUrl)).blob()
@@ -561,7 +571,7 @@ function PostModal({
                   {approving ? '...' : '✓ Approve with this image'}
                 </button>
                 <button
-                  onClick={handleGenerateImage}
+                  onClick={() => { setShowRetryInput(s => !s); setRetryComment('') }}
                   disabled={approving}
                   style={{
                     background: 'none', color: '#a78bfa',
@@ -585,6 +595,42 @@ function PostModal({
                   Skip image
                 </button>
               </div>
+              {showRetryInput && (
+                <div style={{ padding: '12px 16px', background: '#0d1526', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <span style={{ color: '#94a3b8', fontSize: 12 }}>What would you like to change?</span>
+                  <textarea
+                    value={retryComment}
+                    onChange={e => setRetryComment(e.target.value)}
+                    placeholder="e.g. make it darker, use a boardroom scene, change the text size..."
+                    rows={2}
+                    style={{
+                      width: '100%', background: '#0f172a', border: '1px solid #334155',
+                      borderRadius: 6, padding: '8px 10px', color: '#f8fafc',
+                      fontSize: 13, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => handleGenerateImage(retryComment || undefined)}
+                      style={{
+                        background: '#7c3aed', color: '#fff', border: 'none',
+                        borderRadius: 6, padding: '6px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                      }}
+                    >
+                      Regenerate
+                    </button>
+                    <button
+                      onClick={() => setShowRetryInput(false)}
+                      style={{
+                        background: 'none', color: '#64748b', border: '1px solid #334155',
+                        borderRadius: 6, padding: '6px 12px', fontSize: 13, cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : imageGen.phase === 'error' ? (
             <div style={{
@@ -595,7 +641,7 @@ function PostModal({
             }}>
               <span style={{ color: '#f87171', fontSize: 13 }}>⚠ {imageGen.message}</span>
               <button
-                onClick={handleGenerateImage}
+                onClick={() => handleGenerateImage()}
                 style={{
                   background: 'none', color: '#f87171',
                   border: '1px solid #f87171',
@@ -813,7 +859,7 @@ function PostModal({
                   {approving ? 'Approving...' : '✓ Approve'}
                 </button>
                 <button
-                  onClick={handleGenerateImage}
+                  onClick={() => handleGenerateImage()}
                   disabled={approving}
                   style={{
                     background: '#7c3aed',
