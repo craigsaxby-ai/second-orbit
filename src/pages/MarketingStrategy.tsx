@@ -109,7 +109,7 @@ export default function MarketingStrategy() {
         {/* Context */}
         <Section title="Context">
           <Card accent="#f97316">
-            <P>Solo founder running everything via OpenClaw. Time-poor (full-time job). English and writing not a strong point. 20,000 LinkedIn connections but not posting. Must stay faceless — cannot be seen to have another business yet.</P>
+            <P>Solo founder running everything via OpenClaw. Time-poor (full-time job). English and writing not a strong point. 20,000 LinkedIn connections but not posting. Must stay faceless - cannot be seen to have another business yet.</P>
             <P>Mission: finish Searchline MVP → get free users → prove traction → move to paid model.</P>
           </Card>
         </Section>
@@ -118,7 +118,7 @@ export default function MarketingStrategy() {
         <Section title="1 · Core Strategy">
           <Card>
             <P>Build a <strong style={{ color: '#f8fafc' }}>faceless talent intelligence ecosystem</strong> around senior B2B sales hiring and careers.</P>
-            <P><strong style={{ color: '#f8fafc' }}>Public positioning:</strong> Free tools, benchmarks, and practical AI resources — help senior sales leaders make better career moves and help hiring teams hire smarter.</P>
+            <P><strong style={{ color: '#f8fafc' }}>Public positioning:</strong> Free tools, benchmarks, and practical AI resources - help senior sales leaders make better career moves and help hiring teams hire smarter.</P>
             <P><strong style={{ color: '#f97316' }}>Lead with free value first. Not the product.</strong></P>
             <div style={{ marginTop: 12, padding: '12px 16px', background: '#020617', borderRadius: 8 }}>
               <div style={{ color: '#64748b', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Product Flow</div>
@@ -147,7 +147,7 @@ export default function MarketingStrategy() {
             {
               name: 'Erica', color: '#60a5fa',
               use: ['Candidate-friendly tips', 'Salary benchmark prompts', 'Career evidence advice', '"Erica Field Notes" posts'],
-              note: 'Product voice/persona — not a fake person. No fake LinkedIn profile.',
+              note: 'Product voice/persona - not a fake person. No fake LinkedIn profile.',
             },
             {
               name: "Craig's LinkedIn", color: '#34d399',
@@ -174,7 +174,7 @@ export default function MarketingStrategy() {
             </Card>
             <Card>
               <H3>Searchline Company Page</H3>
-              <P><strong style={{ color: '#f8fafc' }}>Cadence:</strong> 3–5 posts/week</P>
+              <P><strong style={{ color: '#f8fafc' }}>Cadence:</strong> 3-5 posts/week</P>
               <P><strong style={{ color: '#f8fafc' }}>Purpose:</strong> Main growth engine</P>
               <Bullets items={['Salary insights', 'Hiring scorecards', 'Erica Field Notes', 'Pilot invitations']} />
             </Card>
@@ -185,7 +185,7 @@ export default function MarketingStrategy() {
               'Create a Company Page, not a fake personal profile',
               'Use Craig\'s real account as private admin only',
               'Do not add Searchline to Craig\'s public Experience section yet',
-              'Add 5–10 starter posts before pushing traffic',
+              'Add 5-10 starter posts before pushing traffic',
             ]} />
           </Card>
         </Section>
@@ -196,7 +196,7 @@ export default function MarketingStrategy() {
             { priority: '🔴 Highest', name: 'LinkedIn Company Pages', why: 'Employer credibility, candidate trust, thought leadership, tool promotion, pilot invitations.' },
             { priority: '🟠 High', name: 'Apollo.io', why: 'Direct employer pilot engine. Carefully targeted campaigns. 100 prospects → 30 replies → 10 conversations → 3 pilots.' },
             { priority: '🟡 Long-term', name: 'SEO / AEO', why: 'Compounding channel. Target: VP Sales salary benchmark, CRO OTE ranges, "how to hire a VP Sales", career evidence guides.' },
-            { priority: '🟢 Support', name: 'Communities', why: 'RevGenius, Pavilion, Reddit r/sales, r/recruiting, r/SaaS. Value-first only — no spam, no repeated links.' },
+            { priority: '🟢 Support', name: 'Communities', why: 'RevGenius, Pavilion, Reddit r/sales, r/recruiting, r/SaaS. Value-first only - no spam, no repeated links.' },
             { priority: '🔵 Experiment', name: 'TikTok / Instagram Reels', why: 'Candidate-side only. Faceless screen recordings. Run 14-day test (20 videos). If no signups, pause.' },
           ].map(({ priority, name, why }) => (
             <Card key={name}>
@@ -216,7 +216,7 @@ export default function MarketingStrategy() {
           {[
             {
               name: 'Campaign 1: Founder / CEO Hiring First Sales Leader',
-              target: ['B2B SaaS 20–300 employees', 'UK / Europe / US', 'Hiring VP Sales, CRO, Sales Director', 'Recent funding or growth signal'],
+              target: ['B2B SaaS 20-300 employees', 'UK / Europe / US', 'Hiring VP Sales, CRO, Sales Director', 'Recent funding or growth signal'],
               offer: 'Free private AI hiring pilot',
               angle: 'We are testing an AI-assisted way to turn a 20-minute role brief into a screened, ranked shortlist.',
             },
@@ -277,19 +277,19 @@ export default function MarketingStrategy() {
         <Section title="8 · SEO & AEO Strategy">
           <Card accent="#7c3aed">
             <H3>Positioning Anchor</H3>
-            <P>Searchline is not a job board, not an ATS, not traditional executive search software. It is the <strong style={{ color: '#f8fafc' }}>technology layer that automates recruitment workflows using AI agents</strong>. Current niche: tech sales leader hiring. Expanding to: all AI-driven recruitment automation. We are the technology provider — not the recruiter.</P>
+            <P>Searchline is not a job board, not an ATS, not traditional executive search software. It is the <strong style={{ color: '#f8fafc' }}>technology layer that automates recruitment workflows using AI agents</strong>. Current niche: tech sales leader hiring. Expanding to: all AI-driven recruitment automation. We are the technology provider - not the recruiter.</P>
             <P>This distinction matters for every keyword and content decision we make.</P>
           </Card>
 
           <Card accent="#a78bfa">
-            <H3>AEO First — Why This Is The Right Bet Right Now</H3>
+            <H3>AEO First - Why This Is The Right Bet Right Now</H3>
             <P>ChatGPT, Perplexity, and Claude are being asked questions like <em style={{ color: '#cbd5e1' }}>"what's the best AI tool for screening candidates"</em>, <em style={{ color: '#cbd5e1' }}>"how do I automate my hiring workflow"</em>, <em style={{ color: '#cbd5e1' }}>"what is an AI recruitment agent"</em>. The answers come from well-structured, authoritative content that answers those specific questions clearly.</P>
-            <P>Almost no purpose-built pages target this yet. With 5–6 good articles we can own those answers in AI answer engines inside 60–90 days. That would take years of traditional SEO work to achieve the same visibility in Google.</P>
+            <P>Almost no purpose-built pages target this yet. With 5-6 good articles we can own those answers in AI answer engines inside 60-90 days. That would take years of traditional SEO work to achieve the same visibility in Google.</P>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginTop: 10 }}>
               {[
-                { label: 'Speed to visibility', value: '60–90 days (AEO) vs 12–18 months (SEO)' },
-                { label: 'Competition level', value: 'Very low right now — window is open' },
-                { label: 'Traffic source', value: 'Growing fast — AI answer engines overtaking Google for research queries' },
+                { label: 'Speed to visibility', value: '60-90 days (AEO) vs 12-18 months (SEO)' },
+                { label: 'Competition level', value: 'Very low right now - window is open' },
+                { label: 'Traffic source', value: 'Growing fast - AI answer engines overtaking Google for research queries' },
                 { label: 'Content requirement', value: 'Well-structured Q&A format, clear definitions, real examples' },
               ].map(({ label, value }) => (
                 <div key={label} style={{ background: '#0a0f1e', borderRadius: 8, padding: '12px 14px' }}>
@@ -301,8 +301,8 @@ export default function MarketingStrategy() {
           </Card>
 
           <Card accent="#22c55e">
-            <H3>Keyword Strategy — Target vs Avoid</H3>
-            <P>Don’t compete on generic HR/recruitment terms. DA90 players are spending six figures on them. Pick angles that are growing fast, have genuine intent, and have almost no purpose-built content yet.</P>
+            <H3>Keyword Strategy - Target vs Avoid</H3>
+            <P>Don't compete on generic HR/recruitment terms. DA90 players are spending six figures on them. Pick angles that are growing fast, have genuine intent, and have almost no purpose-built content yet.</P>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
               <div>
                 <div style={{ color: '#22c55e', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>✓ Target These</div>
@@ -335,16 +335,16 @@ export default function MarketingStrategy() {
                 ))}
               </div>
             </div>
-            <P style={{ marginTop: 12 }}>When a keyword is too competitive, find a more specific angle with the same intent. e.g. “recruitment software” → “AI recruitment agent for tech sales hiring”.</P>
+            <div style={{ marginTop: 12 }}><P>When a keyword is too competitive, find a more specific angle with the same intent. e.g. "recruitment software" → "AI recruitment agent for tech sales hiring".</P></div>
           </Card>
 
           <Card accent="#f97316">
-            <H3>Article Content Plan — AEO-Structured</H3>
+            <H3>Article Content Plan - AEO-Structured</H3>
             <P>Each article targets one primary keyword and is structured to be cited by AI answer engines. Format: clear definition, how it works, who uses it, benefits, real example. No fluff.</P>
             {[
-              { title: 'What is an AI recruitment agent — and how does it work?', keyword: 'AI recruitment agent', aeo: 'What is an AI recruitment agent?', status: 'In progress' },
+              { title: 'What is an AI recruitment agent - and how does it work?', keyword: 'AI recruitment agent', aeo: 'What is an AI recruitment agent?', status: 'In progress' },
               { title: 'How to build an automated recruitment workflow with AI', keyword: 'automated recruitment workflow', aeo: 'How do I automate my hiring process?', status: 'In progress' },
-              { title: 'AI candidate screening: how it works and why it’s replacing manual CV review', keyword: 'AI candidate screening', aeo: 'How does AI candidate screening work?', status: 'In progress' },
+              { title: "AI candidate screening: how it works and why it's replacing manual CV review", keyword: 'AI candidate screening', aeo: 'How does AI candidate screening work?', status: 'In progress' },
             ].map(({ title, keyword, aeo, status }) => (
               <div key={title} style={{ background: '#0a0f1e', border: '1px solid #1e293b', borderRadius: 8, padding: '14px 16px', marginBottom: 10 }}>
                 <div style={{ color: '#f8fafc', fontWeight: 600, fontSize: 14, marginBottom: 8 }}>{title}</div>
@@ -360,23 +360,23 @@ export default function MarketingStrategy() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
             <Card accent="#60a5fa">
               <H3>Backlink Strategy</H3>
-              <P><strong style={{ color: '#93c5fd' }}>Now — organic only.</strong> Don’t chase backlinks early. Let good content do the work.</P>
+              <P><strong style={{ color: '#93c5fd' }}>Now - organic only.</strong> Don't chase backlinks early. Let good content do the work.</P>
               <Bullets items={[
-                'Submit to AI tool directories (Futurepedia, There’s An AI For That)',
+                "Submit to AI tool directories (Futurepedia, There's An AI For That)",
                 'G2 / Capterra listings (free tier)',
                 'Product Hunt launch when ready',
                 'Reddit + community mentions through genuine participation',
                 'HR tech blogs will cite good content naturally',
               ]} />
-              <P><strong style={{ color: '#93c5fd' }}>When budget allows:</strong> Guest posts on SHRM, ERE, RecruitingBriefings (~£500–1,500 each, high DA). Partner content with ATSs.</P>
+              <P><strong style={{ color: '#93c5fd' }}>When budget allows:</strong> Guest posts on SHRM, ERE, RecruitingBriefings (~£500-1,500 each, high DA). Partner content with ATSs.</P>
             </Card>
 
             <Card accent="#fbbf24">
-              <H3>Paid Search — Not Yet</H3>
-              <P>Don’t bid on keywords before you have conversion data. “AI hiring” keywords run £10–30 CPC. Without knowing what converts, that’s burning money.</P>
+              <H3>Paid Search - Not Yet</H3>
+              <P>Don&apos;t bid on keywords before you have conversion data. &quot;AI hiring&quot; keywords run £10–30 CPC. Without knowing what converts, that&apos;s burning money.</P>
               <P><strong style={{ color: '#fde68a' }}>The trigger:</strong> Run 90 days of organic content. Track which keywords drive signups or demo requests. Then bid narrowly on exactly those terms with a tight budget.</P>
               <Bullets items={[
-                'Month 1–3: organic only',
+                'Month 1-3: organic only',
                 'Month 4+: retarget visitors only (cheap, high intent)',
                 'Month 6+: narrow keyword bidding if conversion data supports it',
               ]} />
@@ -384,11 +384,11 @@ export default function MarketingStrategy() {
           </div>
 
           <Card accent="#94a3b8">
-            <H3>Decision Framework — How We Choose Keywords Over Time</H3>
+            <H3>Decision Framework - How We Choose Keywords Over Time</H3>
             <P>The strategy will evolve as we see what drives signups. But the framework is locked:</P>
             {[
               { q: 'High competition keyword?', a: 'Find a more specific angle with the same intent. Own the niche version first.' },
-              { q: 'High search volume but expensive?', a: 'Write AEO content for it, don’t bid. Wait for domain authority to build.' },
+              { q: 'High search volume but expensive?', a: "Write AEO content for it, don't bid. Wait for domain authority to build." },
               { q: 'Low volume but perfect intent?', a: 'Write it. One signup from a perfect-fit customer beats 1,000 bounces.' },
               { q: 'Trending topic?', a: 'Fast-publish a short AEO page. Speed matters for AI answer engine indexing.' },
             ].map(({ q, a }) => (
@@ -416,7 +416,7 @@ export default function MarketingStrategy() {
         </Section>
 
         {/* Radar */}
-        <Section title="10 · Radar — Marketing OS">
+        <Section title="10 · Radar - Marketing OS">
           <P>Separate Telegram channel: <strong style={{ color: '#f8fafc' }}>Radar</strong>. Marketing and growth command centre. Keeps content work away from Nova to avoid burning Sonnet tokens.</P>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
             {[
@@ -458,10 +458,10 @@ export default function MarketingStrategy() {
         {/* 90 Day Plan */}
         <Section title="14 · 90-Day Action Plan">
           {[
-            { phase: 'Days 1–14', title: 'Foundation', color: '#f97316', goal: '30–50 Salary Benchmark users. First emails captured. Radar operational.', actions: ['Searchline LinkedIn Company Page', 'Second Orbit LinkedIn (light)', '5–10 starter Searchline posts', 'Email capture across all products', 'Resend email flows + PostHog tracking', 'Radar Telegram channel setup', 'First Apollo target list', 'Salary benchmark email sequence'] },
-            { phase: 'Days 15–45', title: 'Candidate Growth', color: '#60a5fa', goal: '100 Salary Benchmark users. 50+ Candidate Portal profiles. 30+ Achievement Record users. First employer replies.', actions: ['Publish consistently from Searchline', 'Safe weekly content from Craig', 'Value-first community posts', 'Test 10–20 TikTok/Reels', 'Push Salary Benchmark → Candidate Portal', 'Push Candidate Portal → Achievement Record', 'Light Apollo outreach (10–20 pilot invites)'] },
-            { phase: 'Days 46–75', title: 'Employer Pilots', color: '#a78bfa', goal: '5–10 employer conversations. 3+ live pilots. 100+ candidate interactions. First proof points.', actions: ['Apollo list of 100 target companies', 'Targeted Apollo sequences', 'VP Sales scorecard published', 'Invite 10 companies into private pilots', 'Collect feedback', 'Track all candidate interactions'] },
-            { phase: 'Days 76–90', title: 'Proof & Momentum', color: '#34d399', goal: '100+ candidate users. 3–5 employer pilots. First paid signals. Clear proof for scaling.', actions: ['Anonymised case studies', '"What we learned from 100 senior sales profiles"', 'Benchmark report', 'Searchline pilot application page', 'Test first paid offer', 'Decide which channel to double down on'] },
+            { phase: 'Days 1-14', title: 'Foundation', color: '#f97316', goal: '30-50 Salary Benchmark users. First emails captured. Radar operational.', actions: ['Searchline LinkedIn Company Page', 'Second Orbit LinkedIn (light)', '5-10 starter Searchline posts', 'Email capture across all products', 'Resend email flows + PostHog tracking', 'Radar Telegram channel setup', 'First Apollo target list', 'Salary benchmark email sequence'] },
+            { phase: 'Days 15-45', title: 'Candidate Growth', color: '#60a5fa', goal: '100 Salary Benchmark users. 50+ Candidate Portal profiles. 30+ Achievement Record users. First employer replies.', actions: ['Publish consistently from Searchline', 'Safe weekly content from Craig', 'Value-first community posts', 'Test 10-20 TikTok/Reels', 'Push Salary Benchmark → Candidate Portal', 'Push Candidate Portal → Achievement Record', 'Light Apollo outreach (10-20 pilot invites)'] },
+            { phase: 'Days 46-75', title: 'Employer Pilots', color: '#a78bfa', goal: '5-10 employer conversations. 3+ live pilots. 100+ candidate interactions. First proof points.', actions: ['Apollo list of 100 target companies', 'Targeted Apollo sequences', 'VP Sales scorecard published', 'Invite 10 companies into private pilots', 'Collect feedback', 'Track all candidate interactions'] },
+            { phase: 'Days 76-90', title: 'Proof & Momentum', color: '#34d399', goal: '100+ candidate users. 3-5 employer pilots. First paid signals. Clear proof for scaling.', actions: ['Anonymised case studies', '"What we learned from 100 senior sales profiles"', 'Benchmark report', 'Searchline pilot application page', 'Test first paid offer', 'Decide which channel to double down on'] },
           ].map(({ phase, title, color, goal, actions }) => (
             <Card key={phase} accent={color}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
