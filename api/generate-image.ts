@@ -58,12 +58,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'dall-e-3',
+        model: 'gpt-image-1',
         prompt,
         n: 1,
-        size: '1792x1024',
-        response_format: 'b64_json',
-        quality: 'standard',
+        size: '1536x1024',
+        quality: 'medium',
+        output_format: 'png',
       }),
     })
 
