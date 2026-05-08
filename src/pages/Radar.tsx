@@ -174,13 +174,16 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines
 }
 
+// Curated: senior executive + technology edge, dramatic/dark, city/screen backgrounds
 const CL_BACKGROUNDS = [
-  'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=1200&h=675&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=675&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1200&h=675&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1200&h=675&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=1200&h=675&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1200&h=675&fit=crop&q=85',
+  'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=1200&h=675&fit=crop&q=90', // exec at desk, night city
+  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=675&fit=crop&q=90', // glass skyscrapers, power/tech
+  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=675&fit=crop&q=90', // modern office night, city view
+  'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=675&fit=crop&q=90', // exec at screen, dark office
+  'https://images.unsplash.com/photo-1508385082938-8aa1a0c5b0a4?w=1200&h=675&fit=crop&q=90', // exec at window, corporate
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=1200&h=675&fit=crop&q=90', // exec presenting, boardroom
+  'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&h=675&fit=crop&q=90', // modern tech office, night
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=675&fit=crop&q=90', // team collaboration, screens
 ]
 
 async function loadImage(src: string): Promise<HTMLImageElement | null> {
@@ -193,7 +196,7 @@ async function loadImage(src: string): Promise<HTMLImageElement | null> {
   })
 }
 
-async function generateCanvasImage(hook: string, channel: string, _comment?: string): Promise<string> {
+async function generateCanvasImage(hook: string, channel: string, comment?: string, attempt = 0): Promise<string> {
   const W = 1200, H = 675
   const canvas = document.createElement('canvas')
   canvas.width = W
@@ -265,38 +268,72 @@ async function generateCanvasImage(hook: string, channel: string, _comment?: str
     ctx.textAlign = 'left'
 
   } else {
-    // Craig LinkedIn — executive photo style (no name, no branding)
-    // Pick background based on hook hash for variety
-    const bgIndex = Math.abs(clean.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % CL_BACKGROUNDS.length
+    // Craig LinkedIn — executive photo style, tech edge, colour treatment
+    // Parse comment for style hints
+    const c = (comment || '').toLowerCase()
+    const wantDarker  = c.includes('dark') || c.includes('moody')
+    const wantLighter = c.includes('light') || c.includes('bright') || c.includes('vivid')
+    const wantWarm    = c.includes('warm') || c.includes('gold') || c.includes('amber')
+    const wantTech    = c.includes('tech') || c.includes('screen') || c.includes('digital') || c.includes('data')
+    const wantBoard   = c.includes('board') || c.includes('meeting') || c.includes('team') || c.includes('present')
+
+    // Base index from hook hash, shifted by attempt + comment length so each retry is different
+    const base = Math.abs(clean.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0))
+    const bgIndex = (base + attempt + (comment ? comment.length : 0)) % CL_BACKGROUNDS.length
     const bgImg = await loadImage(CL_BACKGROUNDS[bgIndex])
 
     if (bgImg) {
-      // Draw photo background
       ctx.drawImage(bgImg, 0, 0, W, H)
     } else {
-      // Fallback: dark gradient
-      ctx.fillStyle = '#0a1628'
+      ctx.fillStyle = '#050d1e'
       ctx.fillRect(0, 0, W, H)
     }
 
-    // Dark overlay across full image (heavier on left, lighter on right)
+    // --- Colour treatment: dark overlay + coloured tint for technology edge ---
+    // Base dark overlay
+    const overlayOpacity = wantDarker ? 0.82 : wantLighter ? 0.62 : 0.74
     const overlay = ctx.createLinearGradient(0, 0, W, 0)
-    overlay.addColorStop(0, 'rgba(5,10,25,0.88)')
-    overlay.addColorStop(0.55, 'rgba(5,10,25,0.72)')
-    overlay.addColorStop(1, 'rgba(5,10,25,0.35)')
+    overlay.addColorStop(0,    `rgba(4,9,22,${overlayOpacity})`)
+    overlay.addColorStop(0.52, `rgba(4,9,22,${overlayOpacity - 0.1})`)
+    overlay.addColorStop(1,    `rgba(4,9,22,${overlayOpacity - 0.35})`)
     ctx.fillStyle = overlay
     ctx.fillRect(0, 0, W, H)
 
-    // Hook text — bold white, vertically centred left
+    // Colour tint layer — cyan/teal default, amber if warm, electric blue if tech
+    let tintR = 0, tintG = 200, tintB = 255, tintA = 0.10  // cyan default
+    if (wantWarm)  { tintR = 245; tintG = 158; tintB = 11;  tintA = 0.12 }
+    if (wantTech)  { tintR = 99;  tintG = 102; tintB = 241; tintA = 0.14 }
+    if (wantBoard) { tintR = 16;  tintG = 185; tintB = 129; tintA = 0.10 }
+    const tint = ctx.createLinearGradient(0, H, W, 0)
+    tint.addColorStop(0, `rgba(${tintR},${tintG},${tintB},${tintA + 0.06})`)
+    tint.addColorStop(1, `rgba(${tintR},${tintG},${tintB},0)`)
+    ctx.fillStyle = tint
+    ctx.fillRect(0, 0, W, H)
+
+    // Left accent bar — coloured
+    ctx.fillStyle = `rgba(${tintR},${tintG},${tintB},0.9)`
+    ctx.fillRect(0, 0, 5, H)
+
+    // Subtle bottom vignette
+    const vignette = ctx.createLinearGradient(0, H * 0.7, 0, H)
+    vignette.addColorStop(0, 'rgba(4,9,22,0)')
+    vignette.addColorStop(1, 'rgba(4,9,22,0.55)')
+    ctx.fillStyle = vignette
+    ctx.fillRect(0, 0, W, H)
+
+    // Hook text — bold white, vertically centred, left side
     const fontSize = clean.length > 80 ? 48 : clean.length > 50 ? 56 : 64
     ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
     ctx.fillStyle = '#ffffff'
     ctx.textBaseline = 'alphabetic'
-    const lines = wrapText(ctx, clean, W * 0.55)
+    ctx.shadowColor = 'rgba(0,0,0,0.7)'
+    ctx.shadowBlur = 18
+    const lines = wrapText(ctx, clean, W * 0.54)
     const lh = fontSize * 1.28
     const textBlock = lines.length * lh
     const startY = (H - textBlock) / 2 + fontSize
     lines.forEach((line, i) => ctx.fillText(line, 64, startY + i * lh))
+    ctx.shadowBlur = 0
   }
 
   return canvas.toDataURL('image/png')
@@ -327,6 +364,7 @@ function PostModal({
   const [imageGen, setImageGen] = useState<ImageGenState>({ phase: 'idle' })
   const [retryComment, setRetryComment] = useState('')
   const [showRetryInput, setShowRetryInput] = useState(false)
+  const [genAttempt, setGenAttempt] = useState(0)
 
   // Editable hook
   const [editingHook, setEditingHook] = useState(false)
@@ -358,9 +396,11 @@ function PostModal({
 
   const handleGenerateImage = async (comment?: string) => {
     setShowRetryInput(false)
+    const nextAttempt = genAttempt + (comment !== undefined ? 1 : 0)
+    setGenAttempt(nextAttempt)
     setImageGen({ phase: 'generating' })
     try {
-      const dataUrl = await generateCanvasImage(post.hook ?? post.topic ?? '', post.channel ?? 'CL', comment)
+      const dataUrl = await generateCanvasImage(post.hook ?? post.topic ?? '', post.channel ?? 'CL', comment, nextAttempt)
       // Upload to Supabase storage
       const filename = `radar-${post.id.slice(0, 8)}.png`
       const blob = await (await fetch(dataUrl)).blob()
