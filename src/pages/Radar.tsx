@@ -958,6 +958,192 @@ function StatsBar({ posts, onBulkApprove, bulkApproving }: {
   )
 }
 
+// ─── Article types ──────────────────────────────────────────────────────────────
+
+interface RadarArticle {
+  id: string
+  title: string
+  slug: string
+  summary: string | null
+  keywords: string[] | null
+  body_md: string | null
+  status: 'drafted' | 'approved' | 'published'
+  seo_focus: string | null
+  aeo_questions: string[] | null
+  created_at: string
+}
+
+const ARTICLE_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  drafted:   { bg: 'rgba(100,116,139,0.2)',  text: '#94a3b8' },
+  approved:  { bg: 'rgba(34,197,94,0.15)',   text: '#4ade80' },
+  published: { bg: 'rgba(168,85,247,0.15)',  text: '#c084fc' },
+}
+
+// ─── ArticlesSection ──────────────────────────────────────────────────────────
+
+function ArticlesSection() {
+  const [articles, setArticles] = useState<RadarArticle[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!supabase) { setLoading(false); return }
+    supabase
+      .from('radar_articles')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setArticles((data ?? []) as RadarArticle[])
+        setLoading(false)
+        return
+      })
+      .then(undefined, () => setLoading(false))
+  }, [])
+
+  const handlePublish = async (id: string) => {
+    if (!supabase) return
+    setPublishing(id)
+    const { error: err } = await supabase
+      .from('radar_articles')
+      .update({ status: 'published', updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (!err) {
+      setArticles((prev) => prev.map((a) => a.id === id ? { ...a, status: 'published' as const } : a))
+    }
+    setPublishing(null)
+  }
+
+  return (
+    <div style={{ marginTop: 56 }}>
+      <h2 style={{ color: '#f8fafc', fontSize: 20, fontWeight: 700, margin: '0 0 4px' }}>
+        📝 Articles
+      </h2>
+      <p style={{ color: '#64748b', fontSize: 13, margin: '0 0 20px' }}>
+        SEO & AEO content drafts for Searchline
+      </p>
+
+      {loading && <p style={{ color: '#64748b', fontSize: 13 }}>Loading articles…</p>}
+
+      {!loading && articles.length === 0 && (
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '32px 24px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+          No articles yet. Create articles in the{' '}
+          <code style={{ background: '#1e293b', padding: '1px 6px', borderRadius: 4, color: '#f8fafc' }}>radar_articles</code>{' '}
+          table to activate this section.
+        </div>
+      )}
+
+      {!loading && articles.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {articles.map((article) => {
+            const sc = ARTICLE_STATUS_COLORS[article.status] ?? ARTICLE_STATUS_COLORS.drafted
+            const isExpanded = expanded === article.id
+            return (
+              <div key={article.id} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, overflow: 'hidden' }}>
+                {/* Article row */}
+                <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                      <span style={{
+                        background: sc.bg, color: sc.text,
+                        padding: '1px 8px', borderRadius: 9999,
+                        fontSize: 11, fontWeight: 600, textTransform: 'capitalize',
+                      }}>{article.status}</span>
+                      {article.seo_focus && (
+                        <span style={{
+                          background: 'rgba(251,191,36,0.12)', color: '#fbbf24',
+                          padding: '1px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600,
+                          border: '1px solid rgba(251,191,36,0.2)',
+                        }}>
+                          🎯 {article.seo_focus}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ color: '#f8fafc', fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>{article.title}</p>
+                    {article.keywords && article.keywords.length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {article.keywords.map((kw, i) => (
+                          <span key={i} style={{
+                            background: 'rgba(59,130,246,0.1)', color: '#60a5fa',
+                            border: '1px solid rgba(59,130,246,0.2)',
+                            padding: '1px 7px', borderRadius: 9999, fontSize: 11,
+                          }}>{kw}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                    <button
+                      onClick={() => setExpanded(isExpanded ? null : article.id)}
+                      style={{
+                        background: 'none', border: '1px solid #334155',
+                        borderRadius: 6, padding: '5px 12px',
+                        color: '#94a3b8', fontSize: 12, fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isExpanded ? '▲ Hide' : '▼ View Draft'}
+                    </button>
+                    {article.status !== 'published' && (
+                      <button
+                        onClick={() => handlePublish(article.id)}
+                        disabled={publishing === article.id}
+                        style={{
+                          background: publishing === article.id ? 'rgba(168,85,247,0.3)' : 'rgba(168,85,247,0.15)',
+                          border: '1px solid rgba(168,85,247,0.4)',
+                          borderRadius: 6, padding: '5px 12px',
+                          color: '#c084fc', fontSize: 12, fontWeight: 700,
+                          cursor: publishing === article.id ? 'not-allowed' : 'pointer',
+                          opacity: publishing === article.id ? 0.7 : 1,
+                        }}
+                      >
+                        {publishing === article.id ? '…' : '🚀 Approve & Publish'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {/* Expanded draft preview */}
+                {isExpanded && (
+                  <div style={{ borderTop: '1px solid #1e293b', padding: 20, background: '#020617' }}>
+                    {article.summary && (
+                      <div style={{ marginBottom: 16 }}>
+                        <p style={{ color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px' }}>Summary</p>
+                        <p style={{ color: '#cbd5e1', fontSize: 13, margin: 0, lineHeight: 1.6 }}>{article.summary}</p>
+                      </div>
+                    )}
+                    {article.aeo_questions && article.aeo_questions.length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <p style={{ color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px' }}>AEO Questions</p>
+                        <ul style={{ margin: 0, paddingLeft: 18, color: '#94a3b8', fontSize: 13, lineHeight: 1.7 }}>
+                          {article.aeo_questions.map((q, i) => <li key={i}>{q}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {article.body_md && (
+                      <div>
+                        <p style={{ color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Article Body</p>
+                        <pre style={{
+                          color: '#cbd5e1', fontSize: 12, lineHeight: 1.7,
+                          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                          margin: 0, fontFamily: 'system-ui, sans-serif',
+                          background: '#0a0f1e', border: '1px solid #1e293b',
+                          borderRadius: 8, padding: 16,
+                        }}>
+                          {article.body_md}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Radar page ───────────────────────────────────────────────────────────────
 
 
@@ -1495,6 +1681,7 @@ export default function Radar() {
       </div>
 
         {/* New sections */}
+        <ArticlesSection />
         <MetricsSection />
         <AssetsSection />
         <WeeklyRhythmSection />
