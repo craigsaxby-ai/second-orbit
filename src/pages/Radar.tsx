@@ -1122,9 +1122,14 @@ function ArticlesSection() {
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
-                    {/* Image thumbnail if uploaded */}
-                    {article.image_url && (
-                      <img src={article.image_url} alt="cover" style={{ width: 64, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid #1e293b' }} />
+                    {/* Image confirmation */}
+                    {article.image_url ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <img src={article.image_url} alt="cover" style={{ width: 72, height: 44, objectFit: 'cover', borderRadius: 6, border: '2px solid #22c55e' }} />
+                        <span style={{ color: '#4ade80', fontSize: 11, fontWeight: 700 }}>✓ Image set</span>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#475569', fontSize: 11 }}>No image yet</span>
                     )}
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <button
