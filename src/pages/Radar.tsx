@@ -971,6 +971,7 @@ interface RadarArticle {
   status: 'drafted' | 'approved' | 'published'
   seo_focus: string | null
   aeo_questions: string[] | null
+  image_url: string | null
   created_at: string
 }
 
@@ -986,7 +987,9 @@ function ArticlesSection() {
   const [articles, setArticles] = useState<RadarArticle[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [approving, setApproving] = useState<string | null>(null)
   const [publishing, setPublishing] = useState<string | null>(null)
+  const [uploading, setUploading] = useState<string | null>(null)
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return }
@@ -1001,6 +1004,43 @@ function ArticlesSection() {
       })
       .then(undefined, () => setLoading(false))
   }, [])
+
+  const handleUploadImage = async (id: string, file: File) => {
+    if (!supabase) return
+    setUploading(id)
+    try {
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${id}/cover.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('article-images')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (upErr) { alert('Upload failed: ' + upErr.message); setUploading(null); return }
+      const { data: urlData } = supabase.storage.from('article-images').getPublicUrl(path)
+      const publicUrl = urlData.publicUrl
+      const { error: patchErr } = await supabase
+        .from('radar_articles')
+        .update({ image_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (!patchErr) {
+        setArticles((prev) => prev.map((a) => a.id === id ? { ...a, image_url: publicUrl } : a))
+      }
+    } finally {
+      setUploading(null)
+    }
+  }
+
+  const handleApprove = async (id: string) => {
+    if (!supabase) return
+    setApproving(id)
+    const { error: err } = await supabase
+      .from('radar_articles')
+      .update({ status: 'approved', updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (!err) {
+      setArticles((prev) => prev.map((a) => a.id === id ? { ...a, status: 'approved' as const } : a))
+    }
+    setApproving(null)
+  }
 
   const handlePublish = async (id: string) => {
     if (!supabase) return
@@ -1073,34 +1113,89 @@ function ArticlesSection() {
                       </div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                    <button
-                      onClick={() => setExpanded(isExpanded ? null : article.id)}
-                      style={{
-                        background: 'none', border: '1px solid #334155',
-                        borderRadius: 6, padding: '5px 12px',
-                        color: '#94a3b8', fontSize: 12, fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {isExpanded ? '▲ Hide' : '▼ View Draft'}
-                    </button>
-                    {article.status !== 'published' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
+                    {/* Image thumbnail if uploaded */}
+                    {article.image_url && (
+                      <img src={article.image_url} alt="cover" style={{ width: 64, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid #1e293b' }} />
+                    )}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <button
-                        onClick={() => handlePublish(article.id)}
-                        disabled={publishing === article.id}
+                        onClick={() => setExpanded(isExpanded ? null : article.id)}
                         style={{
-                          background: publishing === article.id ? 'rgba(168,85,247,0.3)' : 'rgba(168,85,247,0.15)',
-                          border: '1px solid rgba(168,85,247,0.4)',
-                          borderRadius: 6, padding: '5px 12px',
-                          color: '#c084fc', fontSize: 12, fontWeight: 700,
-                          cursor: publishing === article.id ? 'not-allowed' : 'pointer',
-                          opacity: publishing === article.id ? 0.7 : 1,
+                          background: 'none', border: '1px solid #334155',
+                          borderRadius: 6, padding: '5px 10px',
+                          color: '#94a3b8', fontSize: 12, fontWeight: 600,
+                          cursor: 'pointer',
                         }}
                       >
-                        {publishing === article.id ? '...' : '🚀 Approve & Publish'}
+                        {isExpanded ? '▲' : '▼ View'}
                       </button>
-                    )}
+
+                      {/* Upload image button */}
+                      {article.status !== 'published' && (
+                        <label style={{
+                          background: uploading === article.id ? 'rgba(99,102,241,0.3)' : 'rgba(99,102,241,0.12)',
+                          border: '1px solid rgba(99,102,241,0.4)',
+                          borderRadius: 6, padding: '5px 10px',
+                          color: '#a5b4fc', fontSize: 12, fontWeight: 600,
+                          cursor: uploading === article.id ? 'not-allowed' : 'pointer',
+                          display: 'inline-block',
+                        }}>
+                          {uploading === article.id ? '⏳' : (article.image_url ? '🖼 Change' : '🖼 Image')}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            disabled={uploading === article.id}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0]
+                              if (f) handleUploadImage(article.id, f)
+                              e.target.value = ''
+                            }}
+                          />
+                        </label>
+                      )}
+
+                      {/* Approve button — only for drafted */}
+                      {article.status === 'drafted' && (
+                        <button
+                          onClick={() => handleApprove(article.id)}
+                          disabled={approving === article.id}
+                          style={{
+                            background: approving === article.id ? 'rgba(34,197,94,0.3)' : 'rgba(34,197,94,0.12)',
+                            border: '1px solid rgba(34,197,94,0.4)',
+                            borderRadius: 6, padding: '5px 10px',
+                            color: '#4ade80', fontSize: 12, fontWeight: 700,
+                            cursor: approving === article.id ? 'not-allowed' : 'pointer',
+                            opacity: approving === article.id ? 0.7 : 1,
+                          }}
+                        >
+                          {approving === article.id ? '...' : '✓ Approve'}
+                        </button>
+                      )}
+
+                      {/* Publish button — only for approved */}
+                      {article.status === 'approved' && (
+                        <button
+                          onClick={() => handlePublish(article.id)}
+                          disabled={publishing === article.id}
+                          style={{
+                            background: publishing === article.id ? 'rgba(168,85,247,0.3)' : 'rgba(168,85,247,0.15)',
+                            border: '1px solid rgba(168,85,247,0.4)',
+                            borderRadius: 6, padding: '5px 10px',
+                            color: '#c084fc', fontSize: 12, fontWeight: 700,
+                            cursor: publishing === article.id ? 'not-allowed' : 'pointer',
+                            opacity: publishing === article.id ? 0.7 : 1,
+                          }}
+                        >
+                          {publishing === article.id ? '...' : '🚀 Publish'}
+                        </button>
+                      )}
+
+                      {article.status === 'published' && (
+                        <span style={{ color: '#c084fc', fontSize: 12, fontWeight: 600 }}>✓ Live</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {/* Expanded draft preview */}
