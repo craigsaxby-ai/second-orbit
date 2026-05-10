@@ -2,6 +2,9 @@
   "functions": {
     "api/generate-image.ts": {
       "maxDuration": 60
+    },
+    "api/upload-article-image.ts": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

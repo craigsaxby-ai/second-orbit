@@ -1009,14 +1009,22 @@ function ArticlesSection() {
     if (!supabase) return
     setUploading(id)
     try {
-      const ext = file.name.split('.').pop() ?? 'jpg'
-      const path = `${id}/cover.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('article-images')
-        .upload(path, file, { upsert: true, contentType: file.type })
-      if (upErr) { alert('Upload failed: ' + upErr.message); setUploading(null); return }
-      const { data: urlData } = supabase.storage.from('article-images').getPublicUrl(path)
-      const publicUrl = urlData.publicUrl
+      // Convert file to base64 and send to server-side API (avoids storage RLS)
+      const arrayBuffer = await file.arrayBuffer()
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+      const res = await fetch('/api/upload-article-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleId: id,
+          fileName: file.name,
+          contentType: file.type,
+          fileBase64: base64,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { alert('Upload failed: ' + (json.error ?? res.status)); return }
+      const publicUrl = json.url as string
       const { error: patchErr } = await supabase
         .from('radar_articles')
         .update({ image_url: publicUrl, updated_at: new Date().toISOString() })
