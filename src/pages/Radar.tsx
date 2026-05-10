@@ -342,7 +342,6 @@ function PostModal({
   post,
   onClose,
   onApprove,
-  onApproveWithImage,
   onBackToDraft,
   onDelete,
   onFieldSaved,
@@ -350,7 +349,6 @@ function PostModal({
   post: RadarPost
   onClose: () => void
   onApprove: (id: string) => Promise<void>
-  onApproveWithImage: (id: string, imageUrl: string) => Promise<void>
   onBackToDraft: (id: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onFieldSaved?: (id: string, field: 'hook' | 'content', value: string) => void
@@ -360,10 +358,6 @@ function PostModal({
   const [backingToDraft, setBackingToDraft] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
-  const [imageGen, setImageGen] = useState<ImageGenState>({ phase: 'idle' })
-  const [retryComment, setRetryComment] = useState('')
-  const [showRetryInput, setShowRetryInput] = useState(false)
-  const [genAttempt, setGenAttempt] = useState(0)
 
   // Editable hook
   const [editingHook, setEditingHook] = useState(false)
@@ -388,55 +382,6 @@ function PostModal({
     try {
       await onApprove(post.id)
       setApproved(true)
-    } finally {
-      setApproving(false)
-    }
-  }
-
-  const handleGenerateImage = async (comment?: string) => {
-    setShowRetryInput(false)
-    const nextAttempt = genAttempt + (comment !== undefined ? 1 : 0)
-    setGenAttempt(nextAttempt)
-    setImageGen({ phase: 'generating' })
-    try {
-      const dataUrl = await generateCanvasImage(post.hook ?? post.topic ?? '', post.channel ?? 'CL', comment, nextAttempt)
-      // Upload to Supabase storage
-      const filename = `radar-${post.id.slice(0, 8)}.png`
-      const blob = await (await fetch(dataUrl)).blob()
-      if (supabase) {
-        const { error: upErr } = await supabase.storage
-          .from('radar-images')
-          .upload(filename, blob, { contentType: 'image/png', upsert: true })
-        if (!upErr) {
-          const { data: pubData } = supabase.storage.from('radar-images').getPublicUrl(filename)
-          setImageGen({ phase: 'review', url: pubData.publicUrl })
-          return
-        }
-      }
-      // Fallback: use data URL directly
-      setImageGen({ phase: 'review', url: dataUrl })
-    } catch (err) {
-      setImageGen({ phase: 'error', message: String(err) })
-    }
-  }
-
-  const handleApproveWithImage = async (imageUrl: string) => {
-    setApproving(true)
-    try {
-      await onApproveWithImage(post.id, imageUrl)
-      setApproved(true)
-      setImageGen({ phase: 'idle' })
-    } finally {
-      setApproving(false)
-    }
-  }
-
-  const handleSkipImage = async () => {
-    setApproving(true)
-    try {
-      await onApprove(post.id)
-      setApproved(true)
-      setImageGen({ phase: 'idle' })
     } finally {
       setApproving(false)
     }
@@ -566,132 +511,8 @@ function PostModal({
 
         {/* Body */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
-          {/* Image - generating / review / existing / placeholder */}
-          {imageGen.phase === 'generating' ? (
-            <div style={{
-              width: '100%', height: 220,
-              background: '#0a0f1e',
-              border: '1px solid #1e293b',
-              display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center', gap: 12,
-            }}>
-              <div style={{
-                width: 28, height: 28,
-                border: '3px solid #1e293b',
-                borderTopColor: '#7c3aed',
-                borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite',
-              }} />
-              <span style={{ color: '#64748b', fontSize: 13 }}>Generating image...</span>
-            </div>
-          ) : imageGen.phase === 'review' ? (
-            <div style={{ width: '100%' }}>
-              <img
-                src={imageGen.url}
-                alt="Generated"
-                style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }}
-              />
-              <div style={{
-                background: '#0a0f1e',
-                borderTop: '1px solid #1e293b',
-                padding: '12px 16px',
-                display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-              }}>
-                <span style={{ color: '#94a3b8', fontSize: 12, flex: 1, minWidth: 120 }}>Image ready - looks good?</span>
-                <button
-                  onClick={() => handleApproveWithImage(imageGen.url)}
-                  disabled={approving}
-                  style={{
-                    background: '#22c55e', color: '#fff', border: 'none',
-                    borderRadius: 7, padding: '6px 14px', fontSize: 13, fontWeight: 700,
-                    cursor: approving ? 'not-allowed' : 'pointer', opacity: approving ? 0.7 : 1,
-                  }}
-                >
-                  {approving ? '...' : '✓ Approve with this image'}
-                </button>
-                <button
-                  onClick={() => { setShowRetryInput(s => !s); setRetryComment('') }}
-                  disabled={approving}
-                  style={{
-                    background: 'none', color: '#a78bfa',
-                    border: '1px solid #7c3aed',
-                    borderRadius: 7, padding: '6px 12px', fontSize: 13, fontWeight: 600,
-                    cursor: approving ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  🔄 Try again
-                </button>
-                <button
-                  onClick={handleSkipImage}
-                  disabled={approving}
-                  style={{
-                    background: 'none', color: '#64748b',
-                    border: '1px solid #334155',
-                    borderRadius: 7, padding: '6px 12px', fontSize: 12,
-                    cursor: approving ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  Skip image
-                </button>
-              </div>
-              {showRetryInput && (
-                <div style={{ padding: '12px 16px', background: '#0d1526', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <span style={{ color: '#94a3b8', fontSize: 12 }}>What would you like to change?</span>
-                  <textarea
-                    value={retryComment}
-                    onChange={e => setRetryComment(e.target.value)}
-                    placeholder="e.g. make it darker, use a boardroom scene, change the text size..."
-                    rows={2}
-                    style={{
-                      width: '100%', background: '#0f172a', border: '1px solid #334155',
-                      borderRadius: 6, padding: '8px 10px', color: '#f8fafc',
-                      fontSize: 13, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={() => handleGenerateImage(retryComment || undefined)}
-                      style={{
-                        background: '#7c3aed', color: '#fff', border: 'none',
-                        borderRadius: 6, padding: '6px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                      }}
-                    >
-                      Regenerate
-                    </button>
-                    <button
-                      onClick={() => setShowRetryInput(false)}
-                      style={{
-                        background: 'none', color: '#64748b', border: '1px solid #334155',
-                        borderRadius: 6, padding: '6px 12px', fontSize: 13, cursor: 'pointer',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : imageGen.phase === 'error' ? (
-            <div style={{
-              width: '100%', padding: '16px 20px',
-              background: 'rgba(239,68,68,0.06)',
-              borderBottom: '1px solid rgba(239,68,68,0.2)',
-              display: 'flex', alignItems: 'center', gap: 12,
-            }}>
-              <span style={{ color: '#f87171', fontSize: 13 }}>⚠ {imageGen.message}</span>
-              <button
-                onClick={() => handleGenerateImage()}
-                style={{
-                  background: 'none', color: '#f87171',
-                  border: '1px solid #f87171',
-                  borderRadius: 6, padding: '4px 10px', fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                Retry
-              </button>
-            </div>
-          ) : post.image_url ? (
+          {/* Image preview (if already attached) */}
+          {post.image_url ? (
             <div style={{ width: '100%', height: 240, overflow: 'hidden' }}>
               <img
                 src={post.image_url}
@@ -699,19 +520,7 @@ function PostModal({
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </div>
-          ) : (() => {
-            const ch = CHANNEL_STYLES[post.channel ?? '']
-            return (
-              <div style={{
-                width: '100%', height: 120,
-                background: ch ? ch.placeholder : '#1e293b',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 32 }}>📡</span>
-              </div>
-            )
-          })()},
-
+          ) : null}
           <div style={{ padding: 24 }}>
           {/* Hook */}
           {(post.hook || editingHook) && (
@@ -875,46 +684,24 @@ function PostModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {approved ? (
               <span style={{ color: '#4ade80', fontSize: 14, fontWeight: 600 }}>✓ Approved</span>
-            ) : imageGen.phase === 'review' || imageGen.phase === 'generating' ? (
-              // While in image review flow, primary actions move to the image panel above
-              <span style={{ color: '#64748b', fontSize: 13 }}>Review the image above to continue</span>
             ) : (
-              <>
-                <button
-                  onClick={handleApprove}
-                  disabled={approving}
-                  style={{
-                    background: '#22c55e',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '8px 20px',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: approving ? 'not-allowed' : 'pointer',
-                    opacity: approving ? 0.7 : 1,
-                  }}
-                >
-                  {approving ? 'Approving...' : '✓ Approve'}
-                </button>
-                <button
-                  onClick={() => handleGenerateImage()}
-                  disabled={approving}
-                  style={{
-                    background: '#7c3aed',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '8px 20px',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: approving ? 'not-allowed' : 'pointer',
-                    opacity: approving ? 0.7 : 1,
-                  }}
-                >
-                  🎨 Approve + Generate Image
-                </button>
-              </>
+              <button
+                onClick={handleApprove}
+                disabled={approving}
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 20px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: approving ? 'not-allowed' : 'pointer',
+                  opacity: approving ? 0.7 : 1,
+                }}
+              >
+                {approving ? 'Approving...' : '✓ Approve'}
+              </button>
             )}
             <button
               onClick={onClose}
@@ -1586,12 +1373,203 @@ function isTableMissingError(msg: string): boolean {
 
 // ─── Nav Items ────────────────────────────────────────────────────────────────
 
+// ─── ImageStudioSection ───────────────────────────────────────────────────────
+
+function ImageStudioSection() {
+  const [prompt, setPrompt] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return
+    setGenerating(true)
+    setError(null)
+    setImageUrl(null)
+    try {
+      const dataUrl = await generateCanvasImage(prompt, 'CL')
+      setImageUrl(dataUrl)
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleDownload = () => {
+    if (!imageUrl) return
+    const a = document.createElement('a')
+    a.href = imageUrl
+    a.download = `radar-image-${Date.now()}.png`
+    a.click()
+  }
+
+  return (
+    <div style={{ padding: '32px 32px 48px', maxWidth: 760 }}>
+      <h2 style={{ color: '#f8fafc', fontSize: 22, fontWeight: 700, margin: '0 0 8px' }}>
+        Image Studio
+      </h2>
+      <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 32px', lineHeight: 1.6 }}>
+        Generate LinkedIn post images. Enter a prompt or hook, then download and attach to your post manually.
+      </p>
+
+      {/* Prompt input */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+          Prompt / Hook
+        </label>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="e.g. Why most AI hiring tools still miss the point — and what actually works"
+          rows={3}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            background: '#0f172a',
+            border: '1px solid #334155',
+            borderRadius: 8,
+            padding: '12px 14px',
+            color: '#f8fafc',
+            fontSize: 14,
+            lineHeight: 1.6,
+            fontFamily: 'system-ui, sans-serif',
+            resize: 'vertical',
+            outline: 'none',
+          }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = '#3b82f6' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = '#334155' }}
+        />
+      </div>
+
+      {/* Generate button */}
+      <button
+        onClick={handleGenerate}
+        disabled={generating || !prompt.trim()}
+        style={{
+          background: generating || !prompt.trim() ? '#1e293b' : '#7c3aed',
+          color: generating || !prompt.trim() ? '#475569' : '#fff',
+          border: 'none',
+          borderRadius: 8,
+          padding: '10px 24px',
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: generating || !prompt.trim() ? 'not-allowed' : 'pointer',
+          marginBottom: 32,
+          transition: 'background 0.15s',
+        }}
+      >
+        {generating ? '⏳ Generating...' : '🎨 Generate Image'}
+      </button>
+
+      {/* Error */}
+      {error && (
+        <div style={{
+          background: 'rgba(239,68,68,0.08)',
+          border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 8,
+          padding: '12px 16px',
+          color: '#f87171',
+          fontSize: 13,
+          marginBottom: 24,
+        }}>
+          ⚠ {error}
+        </div>
+      )}
+
+      {/* Spinner while generating */}
+      {generating && (
+        <div style={{
+          width: '100%',
+          height: 300,
+          background: '#0a0f1e',
+          border: '1px solid #1e293b',
+          borderRadius: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 16,
+        }}>
+          <div style={{
+            width: 32, height: 32,
+            border: '3px solid #1e293b',
+            borderTopColor: '#7c3aed',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+          }} />
+          <span style={{ color: '#64748b', fontSize: 14 }}>Building your image...</span>
+        </div>
+      )}
+
+      {/* Generated image */}
+      {imageUrl && !generating && (
+        <div style={{
+          background: '#0f172a',
+          border: '1px solid #1e293b',
+          borderRadius: 12,
+          overflow: 'hidden',
+        }}>
+          <img
+            src={imageUrl}
+            alt="Generated"
+            style={{ width: '100%', display: 'block' }}
+          />
+          <div style={{
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderTop: '1px solid #1e293b',
+            background: '#0a0f1e',
+          }}>
+            <button
+              onClick={handleDownload}
+              style={{
+                background: '#22c55e',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '8px 20px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              ⬇ Download PNG
+            </button>
+            <button
+              onClick={handleGenerate}
+              style={{
+                background: 'none',
+                color: '#a78bfa',
+                border: '1px solid #7c3aed',
+                borderRadius: 8,
+                padding: '8px 16px',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              🔄 Regenerate
+            </button>
+            <span style={{ color: '#475569', fontSize: 12, flex: 1 }}>
+              Download and attach to your post manually in LinkedIn
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const NAV_ITEMS = [
   { id: 'posts',    icon: '📋', label: 'Mission Control' },
   { id: 'articles', icon: '📰', label: 'Articles' },
   { id: 'metrics',  icon: '📊', label: 'Metrics' },
   { id: 'assets',   icon: '🗂️', label: 'Assets' },
   { id: 'rhythm',   icon: '📅', label: 'Weekly Rhythm' },
+  { id: 'images',   icon: '🎨', label: 'Image Studio' },
 ]
 
 // ─── PostsSection ─────────────────────────────────────────────────────────────
@@ -1880,19 +1858,6 @@ export default function Radar() {
     }
   }
 
-  const handleApproveWithImage = async (id: string, imageUrl: string) => {
-    if (!supabase) return
-    const { error: err } = await supabase
-      .from('radar_posts')
-      .update({ status: 'approved', image_url: imageUrl, updated_at: new Date().toISOString() })
-      .eq('id', id)
-    if (!err) {
-      const post = posts.find((p) => p.id === id)
-      if (post) await fireWebhook({ ...post, status: 'approved', image_url: imageUrl })
-      setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status: 'approved' as PostStatus, image_url: imageUrl } : p))
-    }
-  }
-
   const handleBackToDraft = async (id: string) => {
     if (!supabase) return
     const { error: err } = await supabase
@@ -2122,6 +2087,9 @@ export default function Radar() {
             <WeeklyRhythmSection />
           </div>
         )}
+        {activeSection === 'images' && (
+          <ImageStudioSection />
+        )}
       </div>
 
       {/* Spin animation */}
@@ -2135,10 +2103,6 @@ export default function Radar() {
           onApprove={async (id) => {
             await handleApprove(id)
             setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved' } : prev)
-          }}
-          onApproveWithImage={async (id, imageUrl) => {
-            await handleApproveWithImage(id, imageUrl)
-            setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved', image_url: imageUrl } : prev)
           }}
           onBackToDraft={handleBackToDraft}
           onDelete={async (id) => {
