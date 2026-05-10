@@ -153,12 +153,6 @@ function StatusBadge({ status }: { status: string }) {
 
 // ─── PostModal ────────────────────────────────────────────────────────────────
 
-// Image generation states
-type ImageGenState =
-  | { phase: 'idle' }
-  | { phase: 'generating' }
-  | { phase: 'review'; url: string }
-  | { phase: 'error'; message: string }
 
 // ─── Canvas Image Generator ───────────────────────────────────────────────────
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -1931,6 +1925,7 @@ export default function Radar() {
           position: 'sticky',
           top: 0,
           height: '100vh',
+          maxHeight: '100vh',
         }}
       >
         {/* Logo area */}
@@ -1962,7 +1957,7 @@ export default function Radar() {
         </div>
 
         {/* Nav items */}
-        <nav style={{ flex: 1, padding: sidebarCollapsed ? '12px 0' : '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+        <nav style={{ flex: 1, padding: sidebarCollapsed ? '8px 0' : '8px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', minHeight: 0 }}>
           {NAV_ITEMS.map((item) => {
             const isActive = activeSection === item.id
             return (
@@ -1975,7 +1970,7 @@ export default function Radar() {
                   alignItems: 'center',
                   gap: sidebarCollapsed ? 0 : 10,
                   justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                  padding: sidebarCollapsed ? '10px 0' : '9px 12px',
+                  padding: sidebarCollapsed ? '8px 0' : '7px 12px',
                   borderRadius: 8,
                   border: 'none',
                   cursor: 'pointer',
